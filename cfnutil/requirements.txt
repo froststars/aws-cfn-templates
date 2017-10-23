@@ -1,0 +1,4 @@
+troposphere>=2.0.0
+awacs>=0.7.1
+cfn-flip>=0.2.1
+pyminifier>=2.1
