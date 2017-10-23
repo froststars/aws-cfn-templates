@@ -1,0 +1,1 @@
+awscfncli>=0.5

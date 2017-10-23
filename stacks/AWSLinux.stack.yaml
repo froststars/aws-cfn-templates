@@ -1,0 +1,19 @@
+Stack:
+  TemplateBody:   ../components/ec2/AWSLinux.template.yaml
+  Region:         us-east-1
+  StackName:      Boba-AwsLinux
+  Capabilities:   [CAPABILITY_IAM]
+
+  Tags:
+    company:      Boba Bubble Tea Company
+    department:   Boobs
+    project:      Booba
+    assignee:     Bob
+
+  Parameters:
+    VpcId:        vpc-91c284e8
+    SubnetId:     subnet-caffedf6
+    KeyName:      test-key
+    InstanceType: t2.small
+    LogGroupName: TestLogGroup
+    Volume1Size:  10
