@@ -1,0 +1,393 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: The CodePipeline of AWS CloudFormation Continuous Deployment.
+
+Parameters:
+  AwsPartition:
+    Type: String
+    AllowedValues: [aws, awscn]
+    Default: aws
+    Description: Name of the AWS arn partition.
+  CfnStackName:
+    Type: String
+    Description: The Stack Name.
+  CfnRepoName:
+    Type: String
+    Default: Bob
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9-_]*"
+    MinLength: 1
+    MaxLength: 100
+    Description: Project name, used in CodeCommit repository name, must be
+      unique across region
+  CfnRepoDescription:
+    Type: String
+    Default: "No Description"
+    MinLength: 1
+    MaxLength: 100
+    Description: Project description
+  CfnBuildSpec:
+    Type: String
+    Description: The filename of the CodeBuild Build Specification.
+    Default: "buildspec.yml"
+  AlarmEmails:
+    Default: nobody@amazon.com
+    Description: List of comma delimited email address to notify.
+    Type: CommaDelimitedList
+  NumOfEmails:
+    Default: '1'
+    Description: Number of email addresses in AlarmEmails.
+    Type: String
+
+Resources:
+  ArtifactStore:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "../../components/S3/SimpleS3Bucket.template.yaml"
+
+  Repository:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "../../components/Code/CodeCommitRepository.template.yaml"
+      Parameters:
+        Name:
+          Ref: CfnRepoName
+        Description:
+          Ref: CfnRepoDescription
+
+  CodePipelineSNSTopic:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "../../components/Monitoring/Notification.template.yaml"
+      Parameters:
+        AlarmEmails:
+          Fn::Join: [",", Ref: AlarmEmails]
+        NumOfEmails:
+          Ref: NumOfEmails
+
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        -
+          PolicyName: CloudWatchLogsAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+        -
+          PolicyName: S3Access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                - s3:ListBucket
+                - s3:GetObject
+                - s3:GetObjectVersion
+                - s3:PutObject
+                - s3:PutObjectVersion
+                Effect: Allow
+                Resource:
+                  - Fn::Sub:
+                    - "${Store}"
+                    - Store:
+                        Fn::GetAtt: [ArtifactStore, Outputs.BucketArn]
+                  - Fn::Sub:
+                    - "${Store}/*"
+                    - Store:
+                        Fn::GetAtt: [ArtifactStore, Outputs.BucketArn]
+
+  BuildCfnProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name:
+        Fn::Sub: ${AWS::StackName}-BuildCfnProject-${AWS::Region}
+      Description: Build and validate CloudFormation templates.
+      ServiceRole:
+        Fn::GetAtt: [CodeBuildRole, Arn]
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec:
+          Ref: CfnBuildSpec
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        Image: aws/codebuild/python:2.7.12
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: CFN_PACKAGE_BUCKET
+            Value:
+              Fn::GetAtt: [ArtifactStore, Outputs.BucketName]
+
+  CloudFormationExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AdministratorAccess"
+
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        -
+          PolicyName: CodeCommitAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - codecommit:List*
+                  - codecommit:Get*
+                  - codecommit:BatchGetRepositories
+                  - codecommit:GitPull
+                  - codecommit:UploadArchive
+                Effect: Allow
+                Resource:
+                  - Fn::GetAtt: [Repository, Outputs.RepositoryArn]
+        -
+          PolicyName: S3Access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                - s3:GetObject
+                - s3:GetObjectVersion
+                - s3:PutObject
+                - s3:PutObjectVersion
+                Effect: Allow
+                Resource:
+                  - Fn::Sub:
+                    - "${Store}"
+                    - Store:
+                        Fn::GetAtt: [ArtifactStore, Outputs.BucketArn]
+                  - Fn::Sub:
+                    - "${Store}/*"
+                    - Store:
+                        Fn::GetAtt: [ArtifactStore, Outputs.BucketArn]
+        -
+          PolicyName: CodeBuildAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                - codebuild:StartBuild
+                - codebuild:BatchGetBuilds
+                Effect: Allow
+                Resource:
+                  - Fn::GetAtt: [BuildCfnProject, Arn]
+        -
+          PolicyName: IamAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                - iam:PassRole
+                Effect: Allow
+                Resource:
+                  - Fn::GetAtt: [CloudFormationExecutionRole, Arn]
+        -
+          PolicyName: CloudFormationAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                - cloudformation:DescribeStacks
+                - cloudformation:CreateStack
+                - cloudformation:DeleteStack
+                - cloudformation:UpdateStack
+                - cloudformation:DescribeChangeSet
+                - cloudformation:CreateChangeSet
+                - cloudformation:ExecuteChangeSet
+                Effect: Allow
+                Resource: "*"
+        -
+          PolicyName: SNSAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                - sns:Publish
+                Effect: Allow
+                Resource:
+                  Fn::GetAtt: [CodePipelineSNSTopic, Outputs.TopicArn]
+
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore:
+        Type: S3
+        Location:
+          Fn::GetAtt: [ArtifactStore, Outputs.BucketName]
+      RoleArn:
+        Fn::GetAtt:
+          - PipelineRole
+          - Arn
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: CfnSource
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeCommit
+              Configuration:
+                BranchName: master
+                RepositoryName:
+                  Ref: CfnRepoName
+              OutputArtifacts:
+                - Name: CfnSourceArtifact
+              RunOrder: 1
+
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName:
+                  Ref: BuildCfnProject
+              InputArtifacts:
+                - Name: CfnSourceArtifact
+              OutputArtifacts:
+                - Name: CfnBuildArtifact
+              RunOrder: 1
+
+        - Name: Staging
+          Actions:
+            - Name: CreateStagingStack
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: REPLACE_ON_FAILURE
+                RoleArn:
+                  Fn::GetAtt: [CloudFormationExecutionRole, Arn]
+                Capabilities: CAPABILITY_NAMED_IAM
+                StackName:
+                  Fn::Sub: "${CfnStackName}-Staging"
+                TemplateConfiguration:
+                  Fn::Sub: "CfnBuildArtifact::config.test.json"
+                TemplatePath: "CfnBuildArtifact::Packaged.Master.template"
+              InputArtifacts:
+                - Name: CfnBuildArtifact
+              RunOrder: 1
+
+            - Name: Approval
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: 1
+              Configuration:
+                NotificationArn:
+                  Fn::GetAtt: [CodePipelineSNSTopic, Outputs.TopicArn]
+                CustomData:
+                  Fn::Sub: "Please confirm the staging environment."
+              RunOrder: 2
+
+            - Name: DeleteStagingStack
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: DELETE_ONLY
+                RoleArn:
+                  Fn::GetAtt: [CloudFormationExecutionRole, Arn]
+                StackName:
+                  Fn::Sub: "${CfnStackName}-Staging"
+              OutputArtifacts:
+                - Name: ProceedToProduction
+              RunOrder: 3
+
+        - Name: Production
+          Actions:
+            - Name: CreateChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                ChangeSetName:
+                  Fn::Sub: "${CfnStackName}-ChangeSet"
+                RoleArn:
+                  Fn::GetAtt: [CloudFormationExecutionRole, Arn]
+                Capabilities: CAPABILITY_NAMED_IAM
+                StackName:
+                  Fn::Sub: "${CfnStackName}"
+                TemplateConfiguration:
+                  Fn::Sub: "CfnBuildArtifact::config.prod.json"
+                TemplatePath: "CfnBuildArtifact::Packaged.Master.template"
+              InputArtifacts:
+                - Name: CfnBuildArtifact
+                - Name: ProceedToProduction
+              OutputArtifacts:
+                - Name: CfnChangeSetArtifact
+              RunOrder: 1
+
+            - Name: Approval
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: 1
+              Configuration:
+                NotificationArn:
+                  Fn::GetAtt: [CodePipelineSNSTopic, Outputs.TopicArn]
+                CustomData:
+                  Fn::Sub: "Please confirm the change set."
+              RunOrder: 2
+
+            - Name: ExecuteChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName:
+                  Fn::Sub: "${CfnStackName}-ChangeSet"
+                StackName:
+                  Fn::Sub: "${CfnStackName}"
+              InputArtifacts:
+                - Name: CfnChangeSetArtifact
+              RunOrder: 3
+
+
