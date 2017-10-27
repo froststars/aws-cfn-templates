@@ -3,7 +3,7 @@
 from __future__ import print_function
 
 __author__ = 'kotaimen'
-__date__ = '31/12/2016'
+__date__ = '01/01/2017'
 
 from troposphere import Base64, FindInMap, GetAtt, Join, Select, Sub
 from troposphere import ImportValue, Export
@@ -19,7 +19,6 @@ from troposphere.policies import CreationPolicy, ResourceSignal, UpdatePolicy, \
 import troposphere.cloudformation as cloudformation
 import troposphere.ec2 as ec2
 import troposphere.iam as iam
-import troposphere.s3 as s3
 
 from awacs.aws import Policy, Allow, Deny, Statement, Principal, Everybody
 from awacs.aws import Condition, Bool, ArnEquals, StringEquals, IpAddress, Null
@@ -32,19 +31,15 @@ import awacs.ec2
 import awacs.logs
 
 import csv
-import six
 import cfnutil
+import six
 
 #
 # Template
 #
 t = Template()
 t.add_version('2010-09-09')
-t.add_description(
-    'An Amazon EC2 instance running Amazon Linux 2017.09, supported options '
-    'include optional security groups and instance roles, ssh access and '
-    'instance volume.  This templates also works in China region. '
-)
+t.add_description('Amazon EC2 instance running the Ubuntu Linux.')
 
 #
 # Interface
@@ -65,6 +60,7 @@ parameter_groups = [
         'Parameters':
             [
                 'KeyName',
+                'UbuntuVersion',
                 'InstanceType',
                 'DetailedMonitoring',
                 'InstanceSecurityGroupId',
@@ -124,7 +120,7 @@ param_subnetid = t.add_parameter(Parameter(
 
 param_allocate_elastic_ip = t.add_parameter(Parameter(
     'AllocateElasticIp',
-    Description='Allocate a ElasticIP and associate it to instance',
+    Description='Allocate a ElaticIP and assoicate it to instance',
     Type='String',
     Default='false',
     AllowedValues=['true', 'false'],
@@ -132,9 +128,9 @@ param_allocate_elastic_ip = t.add_parameter(Parameter(
 
 param_associate_public_ip = t.add_parameter(Parameter(
     'AssociatePublicIp',
-    Description='Associate a public IP to instance, "default" means use subnet '
-                'default setting, otherwise SSM and CloudWatchLogs won\'t '
-                'initialize properly',
+    Description='Assoicate a public IP to instance, default means use subnet '
+                'default setting, otherwise SSM and CloudwatchLogs won\'t '
+                'initalize properly',
     Type='String',
     Default='true',
     AllowedValues=['true', 'false'],
@@ -145,6 +141,14 @@ param_key_name = t.add_parameter(Parameter(
     Description='Name of an existing EC2 KeyPair to enable SSH access',
     Type='AWS::EC2::KeyPair::KeyName',
     ConstraintDescription='must be the name of an existing EC2 KeyPair.'
+))
+
+param_ubuntu_version = t.add_parameter(Parameter(
+    'UbuntuVersion',
+    Description='Ubuntu version (only LTS are allowed)',
+    Type='String',
+    Default='xenial',
+    AllowedValues=['artful', 'xenial', 'trusty'],
 ))
 
 param_instance_type = t.add_parameter(Parameter(
@@ -269,31 +273,26 @@ param_loggroup_name = t.add_parameter(Parameter(
 # Mapping
 #
 
-
-def load_aws_linux_ami(filename):
-    """ See: https://aws.amazon.com/amazon-linux-ami/ """
-    amis = dict()
+def load_ubuntu_ami(filename):
+    """ See: http://cloud-images.ubuntu.com/locator/ec2/ """
+    ubuntu_amis = dict()
     with open(filename) as f:
         reader = csv.DictReader(f)
         for d in reader:
-            amis[d['REGION']] = {
-                'PV64': d['PV64'],
-                'HVM64': d['HVM64']
-            }
-
-    return amis
+            if d['Zone'] not in ubuntu_amis:
+                ubuntu_amis[d['Zone']] = dict()
+            ubuntu_amis[d['Zone']][d['Name']] = d['AMI-ID']
+    return ubuntu_amis
 
 
-t.add_mapping('AWSInstanceType2Arch',
-              cfnutil.load_mapping('mapping/ec2-instance-type-to-arch.json'))
-
-t.add_mapping('AWSRegionArch2AMI',
-              load_aws_linux_ami('mapping/aws-linux-amis.csv'))
+t.add_mapping(
+    'UbuntuAMIs',
+    load_ubuntu_ami('mapping/ubuntu-hvm-amis.csv')
+)
 
 #
 # Condition
 #
-
 t.add_condition(
     'DefaultEbsOptimizationCondition',
     Equals(Ref(param_ebs_optimized), 'default'),
@@ -346,10 +345,10 @@ t.add_condition(
 # Resources
 #
 
+
 instance_ssh_sg = t.add_resource(ec2.SecurityGroup(
     'SshSecurityGroup',
     VpcId=Ref(param_vpcid),
-    Condition='CreateSecurityGroupCondition',
     GroupDescription='Enable SSH access via port 22',
     SecurityGroupIngress=[
         ec2.SecurityGroupRule(
@@ -452,14 +451,13 @@ awslogs_policy = Policy(
             Sub(
                 'arn:${PARTITION}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*',
                 PARTITION=If('ChinaRegionCondition', 'aws-cn', 'aws')
-            ),
+            )
         ]
     )],
 )
 
 instance_role = t.add_resource(iam.Role(
     'InstanceRole',
-    Condition='CreateInstanceProfileCondition',
     AssumeRolePolicyDocument=Policy(
         Statement=[Statement(
             Effect=Allow,
@@ -474,49 +472,48 @@ instance_role = t.add_resource(iam.Role(
             ))
         ]),
     ManagedPolicyArns=[
-        # This is way too open
-        # Sub(
-        #     'arn:${PARTITION}:iam::aws:policy/service-role/AmazonEC2RoleforSSM',
-        #     PARTITION=If('ChinaRegionCondition', 'aws-cn', 'aws')
-        # )
     ],
     Policies=[
+        # iam.Policy(
+        #     PolicyName='Ec2SSM',
+        #     PolicyDocument=ssm_policy,
+        # ),
         iam.Policy(
             PolicyName='AWSLogs',
             PolicyDocument=awslogs_policy,
-        ),
-        iam.Policy(
-            PolicyName='Ec2SSM',
-            PolicyDocument=ssm_policy,
         ),
     ]
 ))
 
 instance_profile = t.add_resource(iam.InstanceProfile(
     'InstanceProfile',
-    Condition='CreateInstanceProfileCondition',
     Roles=[
         Ref(instance_role)
     ],
 ))
 
-instance_resource_name = 'AwsLinuxInstance'
+instance_resource_name = 'UbuntuInstance'
 
 instance_user_data = Base64(Sub('''#!/bin/bash -xe
-# Update CloudFormation tools
-yum update -y aws-cfn-bootstrap
+sudo apt-get -yq update
+sudo apt-get -yq install python-setuptools python-pip
 
-# Run CloudFormation tools init
-/opt/aws/bin/cfn-init -v \
-    --stack ${AWS::StackName} \
-    --resource %(INSTANCE_NAME)s \
-    --configsets Bootstrap \
-    --region ${AWS::Region}
-    
-/opt/aws/bin/cfn-signal -e $? \
-    --stack ${AWS::StackName} \
-    --resource %(INSTANCE_NAME)s \
-    --region ${AWS::Region}
+# Install cfn-tools
+sudo pip install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+sudo cp /usr/local/init/ubuntu/cfn-hup /etc/init.d/cfn-hup
+sudo chmod +x /etc/init.d/cfn-hup
+sudo update-rc.d cfn-hup defaults
+
+# Run cfn-init
+cfn-init -v --stack ${AWS::StackName} --resource %(INSTANCE_NAME)s --configsets Bootstrap --region ${AWS::Region}
+cfn-signal -e $? --stack ${AWS::StackName} --resource %(INSTANCE_NAME)s --region ${AWS::Region}
+
+# Install Simple System Manager
+# cd /tmp
+# sudo curl https://amazon-ssm-${AWS::Region}.s3.amazonaws.com/latest/debian_amd64/amazon-ssm-agent.deb -o amazon-ssm-agent.deb
+# sudo dpkg -i amazon-ssm-agent.deb
+# sudo start amazon-ssm-agent
+
 ''' % {'INSTANCE_NAME': instance_resource_name}))
 
 instance_metadata = cloudformation.Metadata(
@@ -529,7 +526,6 @@ instance_metadata = cloudformation.Metadata(
             ],
             Update=[
                 'ConfigCFNTools',
-                'InstallAWSTools',
                 'InstallPackages',
             ],
         ),
@@ -559,7 +555,7 @@ instance_metadata = cloudformation.Metadata(
                         '    --region ${AWS::Region}'
                         '\n'
                         'runas=root\n' % \
-                        {'INSTANCE_NAME': instance_resource_name}
+                        dict(INSTANCE_NAME=instance_resource_name)
                     ),
                 },
             },
@@ -580,34 +576,35 @@ instance_metadata = cloudformation.Metadata(
         ),
         InstallAWSTools=cloudformation.InitConfig(
             packages={
-                'yum': {
-                    'aws-cli': [],
-                    'awslogs': [],
+                'apt': {
+                    'python-pip': [],
+                },
+                'python': {
+                    'awscli': []
                 },
             },
             files={
-                '/etc/awslogs/awscli.conf': {
+                '/home/ubuntu/.aws/config': {
                     'content': Sub(
-                        '[plugins]\n'
-                        'cwlogs = cwlogs\n'
                         '[default]\n'
+                        's3 =\n'
+                        '    signature_version = s3v4\n'
                         'region = ${AWS::Region}\n'
                     ),
-                    'mode': '000400',
-                    'owner': 'root',
-                    'group': 'root',
+                    'owner': 'ubuntu',
+                    'group': 'ubuntu',
                 },
-                '/etc/awslogs/awslogs.conf': {
+                '/tmp/awslogs.conf': {
                     'content': Sub(
                         '[general]\n'
-                        'state_file = /var/lib/awslogs/agent-state\n'
-                        '[/var/log/messages]\n'
+                        'state_file= /var/awslogs/agent-state\n'
+                        '[/var/log/syslog]\n'
                         'datetime_format = %b %d %H:%M:%S\n'
-                        'file = /var/log/messages\n'
+                        'file = /var/log/syslog\n'
                         'buffer_duration = 5000\n'
                         'initial_position = start_of_file\n'
                         'log_group_name = ${LOG_GROUP_NAME}\n'
-                        'log_stream_name = ${AWS::StackName}/{instance_id}/messages\n',
+                        'log_stream_name = ${AWS::StackName}/{instance_id}/syslog\n',
                         LOG_GROUP_NAME=Ref(param_loggroup_name)
                     ),
                     'mode': '000400',
@@ -616,25 +613,29 @@ instance_metadata = cloudformation.Metadata(
                 },
             },
             commands={
+                '01_download_awslogs': {
+                    'command': 'wget https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py',
+                    'cwd': '/tmp',
+                },
+                '02_install_awslogs': {
+                    'command': Sub(
+                        'python awslogs-agent-setup.py -n -r ${AWS::Region} -c /tmp/awslogs.conf'),
+                    'cwd': '/tmp',
+                },
+                # awslogs don't support systemctl yet
+                '03_enable_awslogs': {
+                    'command': 'systemctl enable awslogs.service',
+                    'test': 'test $(lsb_release -cs) = "xenial"'
+                },
+                '04_start_awslogs': {
+                    'command': 'systemctl start awslogs.service',
+                    'test': 'test $(lsb_release -cs) = "xenial"'
+                },
             },
-            services={
-                'sysvinit': cloudformation.InitServices(
-                    {
-                        'awslogs': cloudformation.InitService(
-                            enabled=True,
-                            ensureRunning=True,
-                            files=[
-                                '/etc/awslogs/awslogs.conf',
-                                '/etc/awslogs/awscli.conf',
-                            ]
-                        ),
-
-                    },
-                )},
         ),
         InstallPackages=cloudformation.InitConfig(
             # packages={
-            #     'yum': {
+            #     'apt': {
             #         'nginx': [],
             #     }
             # },
@@ -653,13 +654,11 @@ instance_metadata = cloudformation.Metadata(
     )
 )
 
-aws_linux_instance = t.add_resource(ec2.Instance(
+ubuntu_instance = t.add_resource(ec2.Instance(
 
     instance_resource_name,
 
-    ImageId=FindInMap('AWSRegionArch2AMI', Ref(AWS_REGION),
-                      FindInMap('AWSInstanceType2Arch',
-                                Ref(param_instance_type), 'Arch')),
+    ImageId=FindInMap('UbuntuAMIs', Ref(AWS_REGION), Ref(param_ubuntu_version)),
 
     InstanceType=Ref(param_instance_type),
     KeyName=Ref(param_key_name),
@@ -695,7 +694,7 @@ volume1 = t.add_resource(ec2.Volume(
     'Volume1',
     Condition='Volume1Condition',
     # DeletionPolicy=Retain,
-    AvailabilityZone=GetAtt(aws_linux_instance, 'AvailabilityZone'),
+    AvailabilityZone=GetAtt(ubuntu_instance, 'AvailabilityZone'),
     VolumeType=Ref(param_volume1_type),
     Size=Ref(param_volume1_size),
     Iops=If('Volume1IopsOptimizedCondition',
@@ -712,7 +711,7 @@ volume1_attachment = t.add_resource(ec2.VolumeAttachment(
     'Volume1Attachment',
     Condition='Volume1Condition',
     Device=Ref(param_volume1_device),
-    InstanceId=Ref(aws_linux_instance),
+    InstanceId=Ref(ubuntu_instance),
     VolumeId=Ref(volume1),
 ))
 
@@ -728,7 +727,7 @@ eip_association = t.add_resource(ec2.EIPAssociation(
     'EIPAssociation',
     Condition='AllocateElasticIpCondition',
     AllocationId=GetAtt(eip, 'AllocationId'),
-    InstanceId=Ref(aws_linux_instance),
+    InstanceId=Ref(ubuntu_instance),
 ))
 
 #
@@ -737,16 +736,16 @@ eip_association = t.add_resource(ec2.EIPAssociation(
 t.add_output([
     Output('PrivateIp',
            Description='Instance private IP address',
-           Value=GetAtt(aws_linux_instance, 'PrivateIp'),
+           Value=GetAtt(ubuntu_instance, 'PrivateIp'),
            ),
     Output('PublicIp',
            Condition='PublicIpCondition',
            Description='Public IP address',
-           Value=GetAtt(aws_linux_instance, 'PublicIp'),
+           Value=GetAtt(ubuntu_instance, 'PublicIp'),
            ),
     Output('InstanceId',
            Description='EC2 Instance Id',
-           Value=Ref(aws_linux_instance),
+           Value=Ref(ubuntu_instance),
            ),
     Output('Volume1Id',
            Condition='Volume1Condition',

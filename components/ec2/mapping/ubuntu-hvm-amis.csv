@@ -1,0 +1,38 @@
+Zone,Name,Version,Arch,Instance Type,Release,AMI-ID,AKI-ID
+ap-south-1,artful,17.10,amd64,hvm:ebs-ssd,20171017,ami-fe0c4e91,hvm
+us-east-1,artful,17.10,amd64,hvm:ebs-ssd,20171017,ami-36a8754c,hvm
+ap-northeast-1,artful,17.10,amd64,hvm:ebs-ssd,20171017,ami-6f3be109,hvm
+eu-west-1,artful,17.10,amd64,hvm:ebs-ssd,20171017,ami-cc67b9b5,hvm
+ap-southeast-1,artful,17.10,amd64,hvm:ebs-ssd,20171017,ami-9aa4e0f9,hvm
+ca-central-1,artful,17.10,amd64,hvm:ebs-ssd,20171017,ami-cfba02ab,hvm
+us-west-1,artful,17.10,amd64,hvm:ebs-ssd,20171017,ami-5a4a773a,hvm
+eu-central-1,artful,17.10,amd64,hvm:ebs-ssd,20171017,ami-b058e1df,hvm
+sa-east-1,artful,17.10,amd64,hvm:ebs-ssd,20171017,ami-f86a1394,hvm
+ap-southeast-2,artful,17.10,amd64,hvm:ebs-ssd,20171017,ami-1dad417f,hvm
+eu-west-2,artful,17.10,amd64,hvm:ebs-ssd,20171017,ami-163c2172,hvm
+ap-northeast-2,artful,17.10,amd64,hvm:ebs-ssd,20171017,ami-a16dc8cf,hvm
+us-west-2,artful,17.10,amd64,hvm:ebs-ssd,20171017,ami-48ce0c30,hvm
+us-east-2,artful,17.10,amd64,hvm:ebs-ssd,20171017,ami-03e9c566,hvm
+ap-northeast-1,trusty,14.04 LTS,amd64,hvm:ebs-ssd,20171010,ami-3b60bc5d,hvm
+ap-southeast-1,trusty,14.04 LTS,amd64,hvm:ebs-ssd,20171010,ami-6194ec02,hvm
+eu-central-1,trusty,14.04 LTS,amd64,hvm:ebs-ssd,20171010,ami-c9d966a6,hvm
+eu-west-1,trusty,14.04 LTS,amd64,hvm:ebs-ssd,20171010,ami-d429faad,hvm
+sa-east-1,trusty,14.04 LTS,amd64,hvm:ebs-ssd,20171010,ami-356e1059,hvm
+us-east-1,trusty,14.04 LTS,amd64,hvm:ebs-ssd,20171010,ami-6e29e714,hvm
+us-west-1,trusty,14.04 LTS,amd64,hvm:ebs-ssd,20171010,ami-e1784a81,hvm
+ap-southeast-2,trusty,14.04 LTS,amd64,hvm:ebs-ssd,20171010,ami-6c27c50e,hvm
+us-west-2,trusty,14.04 LTS,amd64,hvm:ebs-ssd,20171010,ami-6aa26412,hvm
+ap-south-1,xenial,16.04 LTS,amd64,hvm:ebs-ssd,20171011,ami-50591a3f,hvm
+us-east-1,xenial,16.04 LTS,amd64,hvm:ebs-ssd,20171011,ami-bcdc16c6,hvm
+ap-northeast-1,xenial,16.04 LTS,amd64,hvm:ebs-ssd,20171011,ami-6959870f,hvm
+eu-west-1,xenial,16.04 LTS,amd64,hvm:ebs-ssd,20171011,ami-eed00d97,hvm
+ap-southeast-1,xenial,16.04 LTS,amd64,hvm:ebs-ssd,20171011,ami-d9dca7ba,hvm
+ca-central-1,xenial,16.04 LTS,amd64,hvm:ebs-ssd,20171011,ami-13e45c77,hvm
+us-west-1,xenial,16.04 LTS,amd64,hvm:ebs-ssd,20171011,ami-1b17257b,hvm
+eu-central-1,xenial,16.04 LTS,amd64,hvm:ebs-ssd,20171011,ami-e613ac89,hvm
+sa-east-1,xenial,16.04 LTS,amd64,hvm:ebs-ssd,20171011,ami-1ca7d970,hvm
+ap-southeast-2,xenial,16.04 LTS,amd64,hvm:ebs-ssd,20171011,ami-02ad4060,hvm
+eu-west-2,xenial,16.04 LTS,amd64,hvm:ebs-ssd,20171011,ami-ba5f42de,hvm
+ap-northeast-2,xenial,16.04 LTS,amd64,hvm:ebs-ssd,20171011,ami-08d77266,hvm
+us-west-2,xenial,16.04 LTS,amd64,hvm:ebs-ssd,20171011,ami-19e92861,hvm
+us-east-2,xenial,16.04 LTS,amd64,hvm:ebs-ssd,20171011,ami-49426e2c,hvm
