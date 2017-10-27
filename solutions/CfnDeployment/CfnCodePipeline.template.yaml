@@ -107,11 +107,11 @@ Resources:
             Version: "2012-10-17"
             Statement:
               - Action:
-                - S3:ListBucket
-                - S3:GetObject
-                - S3:GetObjectVersion
-                - S3:PutObject
-                - S3:PutObjectVersion
+                - s3:ListBucket
+                - s3:GetObject
+                - s3:GetObjectVersion
+                - s3:PutObject
+                - s3:PutObjectVersion
                 Effect: Allow
                 Resource:
                   - !GetAtt ArtifactStore.Arn
@@ -180,17 +180,17 @@ Resources:
                   - codecommit:UploadArchive
                 Effect: Allow
                 Resource:
-                  - !GetAtt ArtifactStore.Arn
+                  - !GetAtt Repository.Arn
         -
           PolicyName: S3Access
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Action:
-                - S3:GetObject
-                - S3:GetObjectVersion
-                - S3:PutObject
-                - S3:PutObjectVersion
+                - s3:GetObject
+                - s3:GetObjectVersion
+                - s3:PutObject
+                - s3:PutObjectVersion
                 Effect: Allow
                 Resource:
                   - !GetAtt ArtifactStore.Arn
@@ -265,8 +265,7 @@ Resources:
                 Provider: CodeCommit
               Configuration:
                 BranchName: master
-                RepositoryName:
-                  Ref: Repository
+                RepositoryName: !Ref CfnRepoName
               OutputArtifacts:
                 - Name: CfnSourceArtifact
               RunOrder: 1
@@ -288,53 +287,53 @@ Resources:
                 - Name: CfnBuildArtifact
               RunOrder: 1
 
-        - Name: Staging
-          Actions:
-            - Name: CreateStagingStack
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Version: 1
-                Provider: CloudFormation
-              Configuration:
-                ActionMode: REPLACE_ON_FAILURE
-                RoleArn: !GetAtt CloudFormationExecutionRole.Arn
-                Capabilities: CAPABILITY_NAMED_IAM
-                StackName:
-                  Fn::Sub: "${CfnStackName}-Staging"
-                TemplateConfiguration:
-                  Fn::Sub: "CfnBuildArtifact::config.test.json"
-                TemplatePath: "CfnBuildArtifact::Packaged.Master.template"
-              InputArtifacts:
-                - Name: CfnBuildArtifact
-              RunOrder: 1
-
-            - Name: Approval
-              ActionTypeId:
-                Category: Approval
-                Owner: AWS
-                Provider: Manual
-                Version: 1
-              Configuration:
-                NotificationArn: !Ref AlarmTopic
-                CustomData:
-                  Fn::Sub: "Please confirm the staging environment."
-              RunOrder: 2
-
-            - Name: DeleteStagingStack
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Version: 1
-                Provider: CloudFormation
-              Configuration:
-                ActionMode: DELETE_ONLY
-                RoleArn: !GetAtt CloudFormationExecutionRole.Arn
-                StackName:
-                  Fn::Sub: "${CfnStackName}-Staging"
-              OutputArtifacts:
-                - Name: ProceedToProduction
-              RunOrder: 3
+#        - Name: Staging
+#          Actions:
+#            - Name: CreateStagingStack
+#              ActionTypeId:
+#                Category: Deploy
+#                Owner: AWS
+#                Version: 1
+#                Provider: CloudFormation
+#              Configuration:
+#                ActionMode: REPLACE_ON_FAILURE
+#                RoleArn: !GetAtt CloudFormationExecutionRole.Arn
+#                Capabilities: CAPABILITY_NAMED_IAM
+#                StackName:
+#                  Fn::Sub: "${CfnStackName}-Staging"
+#                TemplateConfiguration:
+#                  Fn::Sub: "CfnBuildArtifact::config.test.json"
+#                TemplatePath: "CfnBuildArtifact::Packaged.Master.template"
+#              InputArtifacts:
+#                - Name: CfnBuildArtifact
+#              RunOrder: 1
+#
+#            - Name: Approval
+#              ActionTypeId:
+#                Category: Approval
+#                Owner: AWS
+#                Provider: Manual
+#                Version: 1
+#              Configuration:
+#                NotificationArn: !Ref AlarmTopic
+#                CustomData:
+#                  Fn::Sub: "Please confirm the staging environment."
+#              RunOrder: 2
+#
+#            - Name: DeleteStagingStack
+#              ActionTypeId:
+#                Category: Deploy
+#                Owner: AWS
+#                Version: 1
+#                Provider: CloudFormation
+#              Configuration:
+#                ActionMode: DELETE_ONLY
+#                RoleArn: !GetAtt CloudFormationExecutionRole.Arn
+#                StackName:
+#                  Fn::Sub: "${CfnStackName}-Staging"
+#              OutputArtifacts:
+#                - Name: ProceedToProduction
+#              RunOrder: 3
 
         - Name: Production
           Actions:
@@ -357,7 +356,7 @@ Resources:
                 TemplatePath: "CfnBuildArtifact::Packaged.Master.template"
               InputArtifacts:
                 - Name: CfnBuildArtifact
-                - Name: ProceedToProduction
+#                - Name: ProceedToProduction
               OutputArtifacts:
                 - Name: CfnChangeSetArtifact
               RunOrder: 1
