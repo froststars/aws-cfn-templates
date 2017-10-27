@@ -1,5 +1,5 @@
 Stack:
-  TemplateBody:   ../components/ec2/Ubuntu.template.yaml
+  TemplateBody:   ../components/EC2/Ubuntu.template.yaml
   Region:         us-east-1
   StackName:      Boba-Ubuntu
   Capabilities:   [CAPABILITY_IAM]

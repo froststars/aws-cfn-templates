@@ -1,5 +1,5 @@
 Stack:
-  TemplateBody:   ../components/ec2/AWSLinux.template.yaml
+  TemplateBody:   ../components/EC2/AWSLinux.template.yaml
   Region:         cn-north-1
   StackName:      Boba-AwsLinux
   Capabilities:   [CAPABILITY_IAM]
