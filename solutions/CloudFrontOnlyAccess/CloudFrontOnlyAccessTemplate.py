@@ -85,7 +85,7 @@ update_function_execution_role = t.add_resource(iam.Role(
 update_security_groups_function = t.add_resource(awslambda.Function(
     'UpdateSecurityGroups',
     Description='Update Beanstalk Environment SecurityGroup',
-    # Code=awslambda.Code(
+    # code=awslambda.code(
     # S3Bucket=Sub('aws-lambda-code-${AWS::AccountId}-${AWS::Region}'),
     # S3Key='update_security_groups.py.zip'
 

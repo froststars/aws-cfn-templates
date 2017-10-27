@@ -46,7 +46,7 @@ Resources:
   Repository:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: "../../components/Code/CodeCommitRepository.template.yaml"
+      TemplateURL: "../../components/code/CodeCommitRepository.template.yaml"
       Parameters:
         Name:
           Ref: CfnRepoName

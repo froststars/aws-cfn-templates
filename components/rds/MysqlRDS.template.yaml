@@ -1,0 +1,258 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Conditions:
+  CreateSecurityGroupCondition: !Equals [!Ref 'SecurityGroup', '']
+  EnhancedMonitoringCondition: !Not [!Equals [!Ref 'EnhancedMonitoringConditionRole',
+      '']]
+  IopsStorageCondition: !Equals [!Ref 'StorageType', io1]
+  MultiAzCondition: !Equals [!Ref 'DatabaseMultiAz', 'true']
+  NewDatabaseCondition: !Equals [!Ref 'DatabaseSnapshot', '']
+  UseSnapshotCondition: !Not [!Equals [!Ref 'DatabaseSnapshot', '']]
+Description: MySQL RDS instance.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: Network Configuration
+      Parameters:
+      - VpcId
+      - SubnetIds
+      - SecurityGroup
+      - AvailabilityZone
+    - Label:
+        default: Database Basic Configuration
+      Parameters:
+      - DatabaseSnapshot
+      - DatabaseClass
+      - DatabaseEngineVersion
+      - DatabaseMultiAz
+      - DatabaseUser
+      - DatabasePassword
+    - Label:
+        default: Database Storage Configuration
+      Parameters:
+      - StorageSize
+      - StorageType
+      - StorageIops
+      - StorageEncrypted
+      - KmsKeyId
+    - Label:
+        default: Database Security Configuration
+      Parameters:
+      - EnhancedMonitoringConditionRole
+      - ClientLocation
+      - PubliclyAccessible
+    ParameterLabels:
+      AvailabilityZone:
+        default: Availability Zone
+      ClientLocation:
+        default: Client Location
+      DatabaseClass:
+        default: Database Class
+      DatabaseEngineVersion:
+        default: Database Engine Version
+      DatabaseMultiAz:
+        default: Database Multi Az
+      DatabasePassword:
+        default: Database Password
+      DatabaseSnapshot:
+        default: Database Snapshot
+      DatabaseUser:
+        default: Database User
+      EnhancedMonitoringConditionRole:
+        default: Enhanced Monitoring Condition Role
+      KmsKeyId:
+        default: Kms Key Id
+      PubliclyAccessible:
+        default: Publicly Accessible
+      SecurityGroup:
+        default: Security Group
+      StorageEncrypted:
+        default: Storage Encrypted
+      StorageIops:
+        default: Storage Iops
+      StorageSize:
+        default: Storage Size
+      StorageType:
+        default: Storage Type
+      SubnetIds:
+        default: Subnet Ids
+      VpcId:
+        default: Vpc Id
+Outputs:
+  EndpointAddress:
+    Description: Endpoint address
+    Value: !GetAtt 'MySQLInstance.Endpoint.Address'
+  EndpointPort:
+    Description: Endpoint port
+    Value: !GetAtt 'MySQLInstance.Endpoint.Port'
+Parameters:
+  AvailabilityZone:
+    Description: The name of the Availability Zone where the DB instance is located.
+      This parameter has no effect when DatabaseMultiAZ parameter is set to true.
+    Type: AWS::EC2::AvailabilityZone::Name
+  ClientLocation:
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+    ConstraintDescription: must be a valid CIDR range of the form x.x.x.x/x.
+    Default: 0.0.0.0/0
+    Description: Lockdown database access (default can be accessed from anywhere)
+    MaxLength: '18'
+    MinLength: '9'
+    Type: String
+  DatabaseClass:
+    AllowedValues:
+    - db.t2.micro
+    - db.t2.small
+    - db.t2.medium
+    - db.t2.large
+    - db.m3.medium
+    - db.m3.large
+    - db.m3.xlarge
+    - db.m3.2xlarge
+    - db.m4.large
+    - db.m4.xlarge
+    - db.m4.2xlarge
+    - db.m4.4xlarge
+    - db.m4.10xlarge
+    - db.m4.16xlarge
+    - db.r3.large
+    - db.r3.xlarge
+    - db.r3.2xlarge
+    - db.r3.4xlarge
+    - db.r3.8xlarge
+    Default: db.t2.micro
+    Description: Database instance class
+    Type: String
+  DatabaseEngineVersion:
+    AllowedValues:
+    - 5.5.54
+    - 5.6.34
+    - 5.6.35
+    - 5.7.11
+    - 5.7.16
+    - 5.7.17
+    Default: 5.6.35
+    Description: Database engine version
+    Type: String
+  DatabaseMultiAz:
+    AllowedValues:
+    - 'true'
+    - 'false'
+    Default: 'false'
+    Description: Whether use a multi-AZ Deployment
+    Type: String
+  DatabasePassword:
+    AllowedPattern: '[a-zA-Z0-9]*'
+    ConstraintDescription: must contain only alphanumeric characters.
+    Description: The database admin account password, ignored when a snapshot is specified
+    MaxLength: '41'
+    MinLength: '1'
+    NoEcho: true
+    Type: String
+  DatabaseSnapshot:
+    Default: ''
+    Description: ARN of a DB snapshot to restore from
+    Type: String
+  DatabaseUser:
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric
+      characters.
+    Description: The database admin account username, ignored when a snapshot is specified
+    MaxLength: '16'
+    MinLength: '1'
+    NoEcho: true
+    Type: String
+  EnhancedMonitoringConditionRole:
+    AllowedValues:
+    - ''
+    - rds-monitoring-role
+    Default: ''
+    Description: Database enhanced monitoring role name, leaf blank to disable enhanced
+      monitoring
+    Type: String
+  PubliclyAccessible:
+    AllowedValues:
+    - 'false'
+    - 'true'
+    Default: 'false'
+    Description: Whether the database endpoint is publicly accessible
+    Type: String
+  SecurityGroup:
+    Default: ''
+    Description: Database security group id, a new security group will be created
+      this is left empty.
+    Type: String
+  StorageEncrypted:
+    AllowedValues:
+    - 'true'
+    - 'false'
+    Default: 'false'
+    Description: Indicates whether the DB instance is encrypted.
+    Type: String
+  StorageIops:
+    ConstraintDescription: IOPS range is 100 to 30000
+    Default: '100'
+    Description: IOPS database storage supports, used when the volume type is io1
+    MaxValue: '30000'
+    MinValue: '100'
+    Type: Number
+  StorageSize:
+    ConstraintDescription: must be between 5GB and 6TB.
+    Default: '5'
+    Description: The size of the database storage in GB
+    MaxValue: '6144'
+    MinValue: '5'
+    Type: Number
+  StorageType:
+    AllowedValues:
+    - gp2
+    - io1
+    - default
+    Default: gp2
+    Description: Database storage type
+    Type: String
+  SubnetIds:
+    Description: SubnetIds of existing subnets of the VPC
+    Type: List<AWS::EC2::Subnet::Id>
+  VpcId:
+    Description: VpcId of an existing VPC.
+    Type: AWS::EC2::VPC::Id
+Resources:
+  DatabaseSubnetGroup:
+    Properties:
+      DBSubnetGroupDescription: RDS subnet group
+      SubnetIds: !Ref 'SubnetIds'
+    Type: AWS::RDS::DBSubnetGroup
+  MySQLInstance:
+    DeletionPolicy: Snapshot
+    Properties:
+      AllocatedStorage: !Ref 'StorageSize'
+      AvailabilityZone: !If [MultiAzCondition, 'AWS::NoValue', !Ref 'AvailabilityZone']
+      DBInstanceClass: !Ref 'DatabaseClass'
+      DBSnapshotIdentifier: !If [UseSnapshotCondition, !Ref 'DatabaseSnapshot', !Ref 'AWS::NoValue']
+      DBSubnetGroupName: !Ref 'DatabaseSubnetGroup'
+      Engine: MySQL
+      EngineVersion: !Ref 'DatabaseEngineVersion'
+      Iops: !If [IopsStorageCondition, !Ref 'StorageIops', !Ref 'AWS::NoValue']
+      MasterUserPassword: !If [NewDatabaseCondition, !Ref 'DatabasePassword', !Ref 'AWS::NoValue']
+      MasterUsername: !If [NewDatabaseCondition, !Ref 'DatabaseUser', !Ref 'AWS::NoValue']
+      MonitoringInterval: !If [EnhancedMonitoringCondition, '60', !Ref 'AWS::NoValue']
+      MonitoringRoleArn: !If [EnhancedMonitoringCondition, !Sub 'arn:aws:iam::${AWS::AccountId}:role/${EnhancedMonitoringConditionRole}',
+        !Ref 'AWS::NoValue']
+      Port: '3306'
+      PubliclyAccessible: !Ref 'PubliclyAccessible'
+      StorageEncrypted: !Ref 'StorageEncrypted'
+      StorageType: !Ref 'StorageType'
+      VPCSecurityGroups:
+      - !If [CreateSecurityGroupCondition, !Ref 'RdsSecurityGroup', !Ref 'SecurityGroup']
+    Type: AWS::RDS::DBInstance
+  RdsSecurityGroup:
+    Condition: CreateSecurityGroupCondition
+    Properties:
+      GroupDescription: Enable local mysql access
+      SecurityGroupIngress:
+      - CidrIp: !Ref 'ClientLocation'
+        FromPort: '3306'
+        IpProtocol: tcp
+        ToPort: '3306'
+      VpcId: !Ref 'VpcId'
+    Type: AWS::EC2::SecurityGroup
