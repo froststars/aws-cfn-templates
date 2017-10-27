@@ -37,31 +37,46 @@ Parameters:
     Description: Number of email addresses in AlarmEmails.
     Type: String
 
+Conditions:
+
+  SixEmailsCondition: !Equals [!Ref 'NumOfEmails', '6']
+  FiveEmailsCondition: !Or [!Equals [!Ref 'NumOfEmails', '6'], !Equals [!Ref 'NumOfEmails',
+      '5']]
+  FourEmailsCondition: !Or [!Equals [!Ref 'NumOfEmails', '6'], !Equals [!Ref 'NumOfEmails',
+      '5'], !Equals [!Ref 'NumOfEmails', '4'], !Equals [!Ref 'NumOfEmails', '3']]
+  ThreeEmailsCondition: !Or [!Equals [!Ref 'NumOfEmails', '6'], !Equals [!Ref 'NumOfEmails',
+      '5'], !Equals [!Ref 'NumOfEmails', '4'], !Equals [!Ref 'NumOfEmails', '3']]
+  TwoEmailsCondition: !Or [!Equals [!Ref 'NumOfEmails', '6'], !Equals [!Ref 'NumOfEmails',
+      '5'], !Equals [!Ref 'NumOfEmails', '4'], !Equals [!Ref 'NumOfEmails', '3'],
+    !Equals [!Ref 'NumOfEmails', '2']]
+
 Resources:
+
   ArtifactStore:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: "../../components/S3/SimpleS3Bucket.template.yaml"
+    Type: AWS::S3::Bucket
 
   Repository:
-    Type: AWS::CloudFormation::Stack
+    Type: "AWS::CodeCommit::Repository"
     Properties:
-      TemplateURL: "../../components/code/CodeCommitRepository.template.yaml"
-      Parameters:
-        Name:
-          Ref: CfnRepoName
-        Description:
-          Ref: CfnRepoDescription
+      RepositoryName: !Ref CfnRepoName
+      RepositoryDescription: !Ref CfnRepoDescription
 
-  CodePipelineSNSTopic:
-    Type: AWS::CloudFormation::Stack
+  AlarmTopic:
     Properties:
-      TemplateURL: "../../components/Monitoring/Notification.template.yaml"
-      Parameters:
-        AlarmEmails:
-          Fn::Join: [",", Ref: AlarmEmails]
-        NumOfEmails:
-          Ref: NumOfEmails
+      Subscription:
+      - Endpoint: !Select [0, !Ref 'AlarmEmails']
+        Protocol: email
+      - !If [TwoEmailsCondition, {Endpoint: !Select [1, !Ref 'AlarmEmails'], Protocol: email},
+        !Ref 'AWS::NoValue']
+      - !If [ThreeEmailsCondition, {Endpoint: !Select [2, !Ref 'AlarmEmails'], Protocol: email},
+        !Ref 'AWS::NoValue']
+      - !If [FourEmailsCondition, {Endpoint: !Select [3, !Ref 'AlarmEmails'], Protocol: email},
+        !Ref 'AWS::NoValue']
+      - !If [FiveEmailsCondition, {Endpoint: !Select [4, !Ref 'AlarmEmails'], Protocol: email},
+        !Ref 'AWS::NoValue']
+      - !If [SixEmailsCondition, {Endpoint: !Select [5, !Ref 'AlarmEmails'], Protocol: email},
+        !Ref 'AWS::NoValue']
+    Type: AWS::SNS::Topic
 
   CodeBuildRole:
     Type: AWS::IAM::Role
@@ -92,21 +107,17 @@ Resources:
             Version: "2012-10-17"
             Statement:
               - Action:
-                - s3:ListBucket
-                - s3:GetObject
-                - s3:GetObjectVersion
-                - s3:PutObject
-                - s3:PutObjectVersion
+                - S3:ListBucket
+                - S3:GetObject
+                - S3:GetObjectVersion
+                - S3:PutObject
+                - S3:PutObjectVersion
                 Effect: Allow
                 Resource:
-                  - Fn::Sub:
-                    - "${Store}"
-                    - Store:
-                        Fn::GetAtt: [ArtifactStore, Outputs.BucketArn]
+                  - !GetAtt ArtifactStore.Arn
                   - Fn::Sub:
                     - "${Store}/*"
-                    - Store:
-                        Fn::GetAtt: [ArtifactStore, Outputs.BucketArn]
+                    - Store: !GetAtt ArtifactStore.Arn
 
   BuildCfnProject:
     Type: AWS::CodeBuild::Project
@@ -128,8 +139,7 @@ Resources:
         ComputeType: BUILD_GENERAL1_SMALL
         EnvironmentVariables:
           - Name: CFN_PACKAGE_BUCKET
-            Value:
-              Fn::GetAtt: [ArtifactStore, Outputs.BucketName]
+            Value: !Ref ArtifactStore
 
   CloudFormationExecutionRole:
     Type: AWS::IAM::Role
@@ -170,27 +180,23 @@ Resources:
                   - codecommit:UploadArchive
                 Effect: Allow
                 Resource:
-                  - Fn::GetAtt: [Repository, Outputs.RepositoryArn]
+                  - !GetAtt ArtifactStore.Arn
         -
           PolicyName: S3Access
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Action:
-                - s3:GetObject
-                - s3:GetObjectVersion
-                - s3:PutObject
-                - s3:PutObjectVersion
+                - S3:GetObject
+                - S3:GetObjectVersion
+                - S3:PutObject
+                - S3:PutObjectVersion
                 Effect: Allow
                 Resource:
-                  - Fn::Sub:
-                    - "${Store}"
-                    - Store:
-                        Fn::GetAtt: [ArtifactStore, Outputs.BucketArn]
+                  - !GetAtt ArtifactStore.Arn
                   - Fn::Sub:
                     - "${Store}/*"
-                    - Store:
-                        Fn::GetAtt: [ArtifactStore, Outputs.BucketArn]
+                    - Store: !GetAtt ArtifactStore.Arn
         -
           PolicyName: CodeBuildAccess
           PolicyDocument:
@@ -211,7 +217,7 @@ Resources:
                 - iam:PassRole
                 Effect: Allow
                 Resource:
-                  - Fn::GetAtt: [CloudFormationExecutionRole, Arn]
+                  - !GetAtt CloudFormationExecutionRole.Arn
         -
           PolicyName: CloudFormationAccess
           PolicyDocument:
@@ -235,8 +241,7 @@ Resources:
               - Action:
                 - sns:Publish
                 Effect: Allow
-                Resource:
-                  Fn::GetAtt: [CodePipelineSNSTopic, Outputs.TopicArn]
+                Resource: !Ref AlarmTopic
 
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
@@ -244,7 +249,7 @@ Resources:
       ArtifactStore:
         Type: S3
         Location:
-          Fn::GetAtt: [ArtifactStore, Outputs.BucketName]
+          !Ref ArtifactStore
       RoleArn:
         Fn::GetAtt:
           - PipelineRole
@@ -261,7 +266,7 @@ Resources:
               Configuration:
                 BranchName: master
                 RepositoryName:
-                  Ref: CfnRepoName
+                  Ref: Repository
               OutputArtifacts:
                 - Name: CfnSourceArtifact
               RunOrder: 1
@@ -293,8 +298,7 @@ Resources:
                 Provider: CloudFormation
               Configuration:
                 ActionMode: REPLACE_ON_FAILURE
-                RoleArn:
-                  Fn::GetAtt: [CloudFormationExecutionRole, Arn]
+                RoleArn: !GetAtt CloudFormationExecutionRole.Arn
                 Capabilities: CAPABILITY_NAMED_IAM
                 StackName:
                   Fn::Sub: "${CfnStackName}-Staging"
@@ -312,8 +316,7 @@ Resources:
                 Provider: Manual
                 Version: 1
               Configuration:
-                NotificationArn:
-                  Fn::GetAtt: [CodePipelineSNSTopic, Outputs.TopicArn]
+                NotificationArn: !Ref AlarmTopic
                 CustomData:
                   Fn::Sub: "Please confirm the staging environment."
               RunOrder: 2
@@ -326,8 +329,7 @@ Resources:
                 Provider: CloudFormation
               Configuration:
                 ActionMode: DELETE_ONLY
-                RoleArn:
-                  Fn::GetAtt: [CloudFormationExecutionRole, Arn]
+                RoleArn: !GetAtt CloudFormationExecutionRole.Arn
                 StackName:
                   Fn::Sub: "${CfnStackName}-Staging"
               OutputArtifacts:
@@ -346,8 +348,7 @@ Resources:
                 ActionMode: CHANGE_SET_REPLACE
                 ChangeSetName:
                   Fn::Sub: "${CfnStackName}-ChangeSet"
-                RoleArn:
-                  Fn::GetAtt: [CloudFormationExecutionRole, Arn]
+                RoleArn: !GetAtt CloudFormationExecutionRole.Arn
                 Capabilities: CAPABILITY_NAMED_IAM
                 StackName:
                   Fn::Sub: "${CfnStackName}"
@@ -368,8 +369,7 @@ Resources:
                 Provider: Manual
                 Version: 1
               Configuration:
-                NotificationArn:
-                  Fn::GetAtt: [CodePipelineSNSTopic, Outputs.TopicArn]
+                NotificationArn: !Ref AlarmTopic
                 CustomData:
                   Fn::Sub: "Please confirm the change set."
               RunOrder: 2
@@ -389,5 +389,3 @@ Resources:
               InputArtifacts:
                 - Name: CfnChangeSetArtifact
               RunOrder: 3
-
-
