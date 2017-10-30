@@ -1,0 +1,20 @@
+Stack:
+  TemplateBody:   ../components/RDS/Aurora.template.yaml
+  Region:         us-east-1
+  StackName:      Boba-Aurora
+  Capabilities:   [CAPABILITY_IAM]
+
+  Tags:
+    company:      Boba Bubble Tea Company
+    department:   Boobs
+    project:      Booba
+    assignee:     Bob
+
+  Parameters:
+    VpcId:              vpc-91c284e8
+    SubnetIds:          subnet-667f113c,subnet-54ebc31c,subnet-667f113c
+    DatabaseClass:      db.r4.large
+    DatabaseUser:       bob
+    DatabasePassword:   1234567890
+    ClientLocation:     0.0.0.0/0
+    PubliclyAccessible: false
