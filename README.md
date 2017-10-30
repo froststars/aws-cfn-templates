@@ -1,8 +1,5 @@
 # Collection of Reusable CloudFormation Templates
 
-In the process of moving from kotaimen/cfn-templates to here, 
-and ditch `troposphere` in favour of raw YAML templates.
-
 See also:
  
  - https://github.com/awslabs/aws-cloudformation-templates
