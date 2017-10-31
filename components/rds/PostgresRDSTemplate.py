@@ -152,7 +152,7 @@ param_db_class = t.add_parameter(Parameter(
 
 param_db_engine_version = t.add_parameter(Parameter(
     'DatabaseEngineVersion',
-    Default='9.5.4',
+    Default='9.6.3',
     Description='Database engine version',
     Type='String',
     AllowedValues=cfnutil.load_mapping('mapping/rds-postgres-versions.json'),
@@ -291,11 +291,13 @@ t.add_condition(
 )
 
 t.add_condition(
+    'StorageEncryptedConditon',
+    Equals(Ref(param_db_storage_encrypted), 'true'),
+)
+
+t.add_condition(
     'DefaultKmsCondition',
-    And(
-        Equals(Ref(param_db_storage_encrypted), 'true'),
-        Equals(Ref(param_db_kms_key), '')
-    ),
+    Equals(Ref(param_db_kms_key), '')
 )
 
 t.add_condition(
@@ -349,25 +351,32 @@ rds_instance = t.add_resource(rds.DBInstance(
     Iops=If('IopsStorageCondition', Ref(param_db_storage_iops),
             Ref(AWS_NO_VALUE)),
     StorageEncrypted=Ref(param_db_storage_encrypted),
-    KmsKeyId=If('DefaultKmsCondition', Ref(AWS_NO_VALUE),
-                Ref(param_db_kms_key)),
-
+    KmsKeyId=If('StorageEncryptedConditon',
+                If('DefaultKmsCondition',
+                   Ref(AWS_NO_VALUE),
+                   Ref(param_db_kms_key)),
+                Ref(AWS_NO_VALUE),
+                ),
     DBSubnetGroupName=Ref(subnet_group),
     Port='5432',
     VPCSecurityGroups=[
-        If('CreateSecurityGroupCondition',
-           Ref(rds_sg),
-           Ref(param_sg)
-           )
+        If(
+            'CreateSecurityGroupCondition',
+            Ref(rds_sg),
+            Ref(param_sg)
+        )
     ],
-    PubliclyAccessible=Ref(param_db_publicly_accessible),
+    PubliclyAccessible=Ref(
+        param_db_publicly_accessible),
 
-    MonitoringInterval=If('EnhancedMonitoringCondition', '60',
-                          Ref(AWS_NO_VALUE)),
-    MonitoringRoleArn=If('EnhancedMonitoringCondition',
-                         Sub('arn:aws:iam::${AWS::AccountId}:role/'
-                             '${EnhancedMonitoringConditionRole}'),
-                         Ref(AWS_NO_VALUE)),
+    MonitoringInterval=If(
+        'EnhancedMonitoringCondition', '60',
+        Ref(AWS_NO_VALUE)),
+    MonitoringRoleArn=If(
+        'EnhancedMonitoringCondition',
+        Sub('arn:aws:iam::${AWS::AccountId}:role/'
+            '${EnhancedMonitoringConditionRole}'),
+        Ref(AWS_NO_VALUE)),
 ))
 
 #
