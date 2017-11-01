@@ -1,7 +1,7 @@
 Stack:
   TemplateBody:   ../components/RDS/PostgresRDS.template.yaml
   Region:         us-east-1
-  StackName:      Boba-Postgres
+  StackName:      Boba-Postgres2
   Capabilities:   [CAPABILITY_IAM]
 
   Tags:
@@ -11,11 +11,15 @@ Stack:
     assignee:     Bob
 
   Parameters:
-    VpcId:        vpc-91c284e8
-    SubnetIds:    subnet-667f113c,subnet-9d9567f9
-    DatabaseClass: db.t2.micro
-    DatabaseUser: bob
-    DatabasePassword: 1234567890
-    StorageSize:  5
-    ClientLocation: 0.0.0.0/0
-    PubliclyAccessible: false
+    VpcId:                  vpc-91c284e8
+    SubnetIds:              subnet-667f113c,subnet-9d9567f9
+    DatabaseClass:          db.t2.micro
+    DatabaseEngineVersion:  9.6.3
+    DatabaseUser:           bob
+    DatabasePassword:       1234567890
+    DatabaseMultiAz:        true
+    DatabaseEnhancedMonitoring: true
+    StorageSize:            5
+    ClientLocation:         0.0.0.0/0
+    PubliclyAccessible:     false
+    DatabaseReadReplicas:   2

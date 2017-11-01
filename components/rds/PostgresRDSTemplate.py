@@ -37,7 +37,7 @@ import cfnutil
 
 t = Template()
 t.add_version('2010-09-09')
-t.add_description('PostGres RDS instance.')
+t.add_description('PostgreSQL RDS instance.')
 
 #
 # Interface
@@ -64,6 +64,7 @@ parameter_groups = [
                 'DatabaseMultiAz',
                 'DatabaseUser',
                 'DatabasePassword',
+                'DatabaseEnhancedMonitoring',
             ]
     },
     {
@@ -81,11 +82,17 @@ parameter_groups = [
         'Label': {'default': 'Database Security Configuration'},
         'Parameters':
             [
-                'EnhancedMonitoringConditionRole',
                 'ClientLocation',
                 'PubliclyAccessible',
             ]
     },
+    {
+        'Label': {'default': 'Database Replication Configuration'},
+        'Parameters':
+            [
+                'DatabaseReplication',
+            ]
+    }
 
 ]
 
@@ -167,14 +174,15 @@ param_db_user = t.add_parameter(Parameter(
     MinLength='1',
     MaxLength='16',
     AllowedPattern='[a-zA-Z][a-zA-Z0-9]*',
-    ConstraintDescription=('must begin with a letter and contain only'
-                           ' alphanumeric characters.')
+    ConstraintDescription=('must begin with a letter and contain only '
+                           'alphanumeric characters.')
 ))
 
 param_db_password = t.add_parameter(Parameter(
     'DatabasePassword',
     NoEcho=True,
-    Description='The database admin account password, ignored when a snapshot is specified',
+    Description='The database admin account password, ignored when a snapshot '
+                'is specified',
     Type='String',
     MinLength='1',
     MaxLength='41',
@@ -184,11 +192,18 @@ param_db_password = t.add_parameter(Parameter(
 
 param_db_multi_az = t.add_parameter(Parameter(
     'DatabaseMultiAz',
-    NoEcho=True,
     Description='Whether use a multi-AZ Deployment',
     Type='String',
     Default='false',
     AllowedValues=['true', 'false'],
+))
+
+param_db_enhanced_monitoring = t.add_parameter(Parameter(
+    'DatabaseEnhancedMonitoring',
+    Description='Whether enables database enhanced monitoring',
+    Type='String',
+    Default='false',
+    AllowedValues=['false', 'true'],
 ))
 
 param_db_storage_size = t.add_parameter(Parameter(
@@ -211,7 +226,8 @@ param_db_stroage_type = t.add_parameter(Parameter(
 
 param_db_storage_iops = t.add_parameter(Parameter(
     'StorageIops',
-    Description='IOPS database storage supports, used when the volume type is io1',
+    Description='IOPS capability of the database storage, only used when the '
+                'volume type is io1',
     Type='Number',
     Default='100',
     MinValue='100',
@@ -231,19 +247,10 @@ param_db_kms_key = t.add_parameter(Parameter(
     'KmsKeyId',
     Description='The ARN of the KMS master key that is used to encrypt the DB '
                 'instance, If you enable the StorageEncrypted property but '
-                'don\'t specify this property, AWS CloudFormation uses the '
+                'don\'t specify this property, this template uses the '
                 'default master key.',
     Default='',
     Type='String'
-))
-
-param_db_monitoring_role = t.add_parameter(Parameter(
-    'EnhancedMonitoringConditionRole',
-    Description='Database enhanced monitoring role name, leaf blank to '
-                'disable enhanced monitoring',
-    Type='String',
-    Default='',
-    AllowedValues=['', 'rds-monitoring-role'],
 ))
 
 param_db_client_location = t.add_parameter(Parameter(
@@ -264,6 +271,14 @@ param_db_publicly_accessible = t.add_parameter(Parameter(
     Type='String',
     Default='false',
     AllowedValues=['false', 'true'],
+))
+
+param_db_read_replica = t.add_parameter(Parameter(
+    'DatabaseReadReplicas',
+    Description='Number of read replicas of the master database.',
+    Type='String',
+    Default='0',
+    AllowedValues=['0', '1', '2'],
 ))
 
 #
@@ -301,8 +316,26 @@ t.add_condition(
 )
 
 t.add_condition(
+    'ChinaRegionCondition',
+    Equals(Ref(AWS_REGION), 'cn-north-1')
+)
+
+t.add_condition(
     'EnhancedMonitoringCondition',
-    Not(Equals(Ref(param_db_monitoring_role), '')),
+    Equals(Ref(param_db_enhanced_monitoring), 'true'),
+)
+
+t.add_condition(
+    'OneDatabaseReadReplicaCondition',
+    Or(
+        Equals(Ref(param_db_read_replica), '1'),
+        Equals(Ref(param_db_read_replica), '2')
+    ))
+
+t.add_condition(
+    'TwoDatabaseReadReplicaCondition',
+    Equals(Ref(param_db_read_replica), '2')
+
 )
 
 #
@@ -326,13 +359,37 @@ rds_sg = t.add_resource(ec2.SecurityGroup(
 
 subnet_group = t.add_resource(rds.DBSubnetGroup(
     'DatabaseSubnetGroup',
-    DBSubnetGroupDescription='RDS subnet group',
+    DBSubnetGroupDescription='Postgres RDS subnet group',
     SubnetIds=Ref(param_subnetids)
 ))
 
+enhanced_monitoring_role = t.add_resource(iam.Role(
+    'EnhancedMonitoringRole',
+    Condition='EnhancedMonitoringCondition',
+    AssumeRolePolicyDocument=Policy(
+        Statement=[Statement(
+            Effect=Allow,
+            Action=[awacs.sts.AssumeRole],
+            Principal=Principal(
+                'Service',
+                [
+                    If('ChinaRegionCondition',
+                       'monitoring.rds.amazonaws.com.cn',
+                       'monitoring.rds.amazonaws.com')
+                ]
+            ))
+        ]),
+    ManagedPolicyArns=[
+        Sub(
+            'arn:${PARTITION}:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole',
+            PARTITION=If('ChinaRegionCondition', 'aws-cn', 'aws')
+        )
+    ],
+))
+
 rds_instance = t.add_resource(rds.DBInstance(
-    'PostgresRDS',
-    DeletionPolicy=Snapshot,
+    'RdsInstance',
+    DeletionPolicy=Delete,
 
     # DBName=Ref(param_dbname),
     DBSnapshotIdentifier=If('UseSnapshotCondition', Ref(param_db_snapshot),
@@ -344,8 +401,11 @@ rds_instance = t.add_resource(rds.DBInstance(
 
     Engine='postgres',
     EngineVersion=Ref(param_db_engine_version),
+    AllowMajorVersionUpgrade=False,
+    AutoMinorVersionUpgrade=True,
     DBInstanceClass=Ref(param_db_class),
 
+    MultiAZ=Ref(param_db_multi_az),
     StorageType=Ref(param_db_stroage_type),
     AllocatedStorage=Ref(param_db_storage_size),
     Iops=If('IopsStorageCondition', Ref(param_db_storage_iops),
@@ -357,6 +417,7 @@ rds_instance = t.add_resource(rds.DBInstance(
                    Ref(param_db_kms_key)),
                 Ref(AWS_NO_VALUE),
                 ),
+
     DBSubnetGroupName=Ref(subnet_group),
     Port='5432',
     VPCSecurityGroups=[
@@ -370,12 +431,107 @@ rds_instance = t.add_resource(rds.DBInstance(
         param_db_publicly_accessible),
 
     MonitoringInterval=If(
-        'EnhancedMonitoringCondition', '60',
+        'EnhancedMonitoringCondition',
+        '60',
         Ref(AWS_NO_VALUE)),
+
     MonitoringRoleArn=If(
         'EnhancedMonitoringCondition',
-        Sub('arn:aws:iam::${AWS::AccountId}:role/'
-            '${EnhancedMonitoringConditionRole}'),
+        GetAtt(enhanced_monitoring_role, 'Arn'),
+        Ref(AWS_NO_VALUE)),
+))
+
+rds_read_replica_instance_1 = t.add_resource(rds.DBInstance(
+    'RdsReadReplicaInstance1',
+
+    Condition='OneDatabaseReadReplicaCondition',
+    DependsOn='RdsInstance',
+
+    SourceDBInstanceIdentifier=Ref(rds_instance),
+
+    Engine='postgres',
+    EngineVersion=Ref(param_db_engine_version),
+    AllowMajorVersionUpgrade=False,
+    AutoMinorVersionUpgrade=True,
+    DBInstanceClass=Ref(param_db_class),
+
+    StorageType=Ref(param_db_stroage_type),
+    AllocatedStorage=Ref(param_db_storage_size),
+    Iops=If('IopsStorageCondition', Ref(param_db_storage_iops),
+            Ref(AWS_NO_VALUE)),
+    StorageEncrypted=Ref(param_db_storage_encrypted),
+    KmsKeyId=If('StorageEncryptedConditon',
+                If('DefaultKmsCondition',
+                   Ref(AWS_NO_VALUE),
+                   Ref(param_db_kms_key)),
+                Ref(AWS_NO_VALUE),
+                ),
+    Port='5432',
+    VPCSecurityGroups=[
+        If(
+            'CreateSecurityGroupCondition',
+            Ref(rds_sg),
+            Ref(param_sg)
+        )
+    ],
+    PubliclyAccessible=Ref(
+        param_db_publicly_accessible),
+
+    MonitoringInterval=If(
+        'EnhancedMonitoringCondition',
+        '60',
+        Ref(AWS_NO_VALUE)),
+
+    MonitoringRoleArn=If(
+        'EnhancedMonitoringCondition',
+        GetAtt(enhanced_monitoring_role, 'Arn'),
+        Ref(AWS_NO_VALUE)),
+))
+
+rds_read_replica_instance_2 = t.add_resource(rds.DBInstance(
+    'RdsReadReplicaInstance2',
+
+    Condition='TwoDatabaseReadReplicaCondition',
+    DependsOn='RdsInstance',
+
+    SourceDBInstanceIdentifier=Ref(rds_instance),
+
+    Engine='postgres',
+    EngineVersion=Ref(param_db_engine_version),
+    AllowMajorVersionUpgrade=False,
+    AutoMinorVersionUpgrade=True,
+    DBInstanceClass=Ref(param_db_class),
+
+    StorageType=Ref(param_db_stroage_type),
+    AllocatedStorage=Ref(param_db_storage_size),
+    Iops=If('IopsStorageCondition', Ref(param_db_storage_iops),
+            Ref(AWS_NO_VALUE)),
+    StorageEncrypted=Ref(param_db_storage_encrypted),
+    KmsKeyId=If('StorageEncryptedConditon',
+                If('DefaultKmsCondition',
+                   Ref(AWS_NO_VALUE),
+                   Ref(param_db_kms_key)),
+                Ref(AWS_NO_VALUE),
+                ),
+    Port='5432',
+    VPCSecurityGroups=[
+        If(
+            'CreateSecurityGroupCondition',
+            Ref(rds_sg),
+            Ref(param_sg)
+        )
+    ],
+    PubliclyAccessible=Ref(
+        param_db_publicly_accessible),
+
+    MonitoringInterval=If(
+        'EnhancedMonitoringCondition',
+        '60',
+        Ref(AWS_NO_VALUE)),
+
+    MonitoringRoleArn=If(
+        'EnhancedMonitoringCondition',
+        GetAtt(enhanced_monitoring_role, 'Arn'),
         Ref(AWS_NO_VALUE)),
 ))
 
@@ -406,5 +562,4 @@ t.add_output([
 #
 
 cfnutil.write(t,
-              __file__.replace('Template.py', '.template.yaml'),
-              write_yaml=True)
+              __file__.replace('Template.py', '.template.yaml'))

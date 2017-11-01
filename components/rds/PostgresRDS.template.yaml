@@ -1,14 +1,17 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Conditions:
+  ChinaRegionCondition: !Equals [!Ref 'AWS::Region', cn-north-1]
   CreateSecurityGroupCondition: !Equals [!Ref 'SecurityGroup', '']
   DefaultKmsCondition: !Equals [!Ref 'KmsKeyId', '']
-  EnhancedMonitoringCondition: !Not [!Equals [!Ref 'EnhancedMonitoringConditionRole',
-      '']]
+  EnhancedMonitoringCondition: !Equals [!Ref 'DatabaseEnhancedMonitoring', 'true']
   IopsStorageCondition: !Equals [!Ref 'StorageType', io1]
   NewDatabaseCondition: !Equals [!Ref 'DatabaseSnapshot', '']
+  OneDatabaseReadReplicaCondition: !Or [!Equals [!Ref 'DatabaseReadReplicas', '1'],
+    !Equals [!Ref 'DatabaseReadReplicas', '2']]
   StorageEncryptedConditon: !Equals [!Ref 'StorageEncrypted', 'true']
+  TwoDatabaseReadReplicaCondition: !Equals [!Ref 'DatabaseReadReplicas', '2']
   UseSnapshotCondition: !Not [!Equals [!Ref 'DatabaseSnapshot', '']]
-Description: PostGres RDS instance.
+Description: PostgreSQL RDS instance.
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -27,6 +30,7 @@ Metadata:
       - DatabaseMultiAz
       - DatabaseUser
       - DatabasePassword
+      - DatabaseEnhancedMonitoring
     - Label:
         default: Database Storage Configuration
       Parameters:
@@ -38,9 +42,12 @@ Metadata:
     - Label:
         default: Database Security Configuration
       Parameters:
-      - EnhancedMonitoringConditionRole
       - ClientLocation
       - PubliclyAccessible
+    - Label:
+        default: Database Replication Configuration
+      Parameters:
+      - DatabaseReplication
     ParameterLabels:
       ClientLocation:
         default: Client Location
@@ -48,16 +55,18 @@ Metadata:
         default: Database Class
       DatabaseEngineVersion:
         default: Database Engine Version
+      DatabaseEnhancedMonitoring:
+        default: Database Enhanced Monitoring
       DatabaseMultiAz:
         default: Database Multi Az
       DatabasePassword:
         default: Database Password
+      DatabaseReplication:
+        default: Database Replication
       DatabaseSnapshot:
         default: Database Snapshot
       DatabaseUser:
         default: Database User
-      EnhancedMonitoringConditionRole:
-        default: Enhanced Monitoring Condition Role
       KmsKeyId:
         default: Kms Key Id
       PubliclyAccessible:
@@ -79,13 +88,13 @@ Metadata:
 Outputs:
   EndpointAddress:
     Description: Endpoint address
-    Value: !GetAtt 'PostgresRDS.Endpoint.Address'
+    Value: !GetAtt 'RdsInstance.Endpoint.Address'
   EndpointPort:
     Description: Endpoint port
-    Value: !GetAtt 'PostgresRDS.Endpoint.Port'
+    Value: !GetAtt 'RdsInstance.Endpoint.Port'
   EnvironmentVariables:
     Description: Database environment variables
-    Value: !Sub 'PGHOST=${PostgresRDS.Endpoint.Address} PGPORT=${PostgresRDS.Endpoint.Port}
+    Value: !Sub 'PGHOST=${RdsInstance.Endpoint.Address} PGPORT=${RdsInstance.Endpoint.Port}
       PGUSER=${DatabaseUser} PGPASSWORD=${DatabasePassword} '
 Parameters:
   ClientLocation:
@@ -140,13 +149,19 @@ Parameters:
     Default: 9.6.3
     Description: Database engine version
     Type: String
+  DatabaseEnhancedMonitoring:
+    AllowedValues:
+    - 'false'
+    - 'true'
+    Default: 'false'
+    Description: Whether enables database enhanced monitoring
+    Type: String
   DatabaseMultiAz:
     AllowedValues:
     - 'true'
     - 'false'
     Default: 'false'
     Description: Whether use a multi-AZ Deployment
-    NoEcho: true
     Type: String
   DatabasePassword:
     AllowedPattern: '[a-zA-Z0-9]*'
@@ -155,6 +170,14 @@ Parameters:
     MaxLength: '41'
     MinLength: '1'
     NoEcho: true
+    Type: String
+  DatabaseReadReplicas:
+    AllowedValues:
+    - '0'
+    - '1'
+    - '2'
+    Default: '0'
+    Description: Number of read replicas of the master database.
     Type: String
   DatabaseSnapshot:
     Default: ''
@@ -169,19 +192,11 @@ Parameters:
     MinLength: '1'
     NoEcho: true
     Type: String
-  EnhancedMonitoringConditionRole:
-    AllowedValues:
-    - ''
-    - rds-monitoring-role
-    Default: ''
-    Description: Database enhanced monitoring role name, leaf blank to disable enhanced
-      monitoring
-    Type: String
   KmsKeyId:
     Default: ''
     Description: The ARN of the KMS master key that is used to encrypt the DB instance,
       If you enable the StorageEncrypted property but don't specify this property,
-      AWS CloudFormation uses the default master key.
+      this template uses the default master key.
     Type: String
   PubliclyAccessible:
     AllowedValues:
@@ -205,7 +220,8 @@ Parameters:
   StorageIops:
     ConstraintDescription: IOPS range is 100 to 30000
     Default: '100'
-    Description: IOPS database storage supports, used when the volume type is io1
+    Description: IOPS capability of the database storage, only used when the volume
+      type is io1
     MaxValue: '30000'
     MinValue: '100'
     Type: Number
@@ -233,13 +249,30 @@ Parameters:
 Resources:
   DatabaseSubnetGroup:
     Properties:
-      DBSubnetGroupDescription: RDS subnet group
+      DBSubnetGroupDescription: Postgres RDS subnet group
       SubnetIds: !Ref 'SubnetIds'
     Type: AWS::RDS::DBSubnetGroup
-  PostgresRDS:
-    DeletionPolicy: Snapshot
+  EnhancedMonitoringRole:
+    Condition: EnhancedMonitoringCondition
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - !If [ChinaRegionCondition, monitoring.rds.amazonaws.com.cn, monitoring.rds.amazonaws.com]
+      ManagedPolicyArns:
+      - !Sub ['arn:${PARTITION}:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole',
+        {PARTITION: !If [ChinaRegionCondition, aws-cn, aws]}]
+    Type: AWS::IAM::Role
+  RdsInstance:
+    DeletionPolicy: Delete
     Properties:
       AllocatedStorage: !Ref 'StorageSize'
+      AllowMajorVersionUpgrade: 'false'
+      AutoMinorVersionUpgrade: 'true'
       DBInstanceClass: !Ref 'DatabaseClass'
       DBSnapshotIdentifier: !If [UseSnapshotCondition, !Ref 'DatabaseSnapshot', !Ref 'AWS::NoValue']
       DBSubnetGroupName: !Ref 'DatabaseSubnetGroup'
@@ -251,10 +284,59 @@ Resources:
       MasterUserPassword: !If [NewDatabaseCondition, !Ref 'DatabasePassword', !Ref 'AWS::NoValue']
       MasterUsername: !If [NewDatabaseCondition, !Ref 'DatabaseUser', !Ref 'AWS::NoValue']
       MonitoringInterval: !If [EnhancedMonitoringCondition, '60', !Ref 'AWS::NoValue']
-      MonitoringRoleArn: !If [EnhancedMonitoringCondition, !Sub 'arn:aws:iam::${AWS::AccountId}:role/${EnhancedMonitoringConditionRole}',
+      MonitoringRoleArn: !If [EnhancedMonitoringCondition, !GetAtt 'EnhancedMonitoringRole.Arn',
+        !Ref 'AWS::NoValue']
+      MultiAZ: !Ref 'DatabaseMultiAz'
+      Port: '5432'
+      PubliclyAccessible: !Ref 'PubliclyAccessible'
+      StorageEncrypted: !Ref 'StorageEncrypted'
+      StorageType: !Ref 'StorageType'
+      VPCSecurityGroups:
+      - !If [CreateSecurityGroupCondition, !Ref 'RdsSecurityGroup', !Ref 'SecurityGroup']
+    Type: AWS::RDS::DBInstance
+  RdsReadReplicaInstance1:
+    Condition: OneDatabaseReadReplicaCondition
+    DependsOn: RdsInstance
+    Properties:
+      AllocatedStorage: !Ref 'StorageSize'
+      AllowMajorVersionUpgrade: 'false'
+      AutoMinorVersionUpgrade: 'true'
+      DBInstanceClass: !Ref 'DatabaseClass'
+      Engine: postgres
+      EngineVersion: !Ref 'DatabaseEngineVersion'
+      Iops: !If [IopsStorageCondition, !Ref 'StorageIops', !Ref 'AWS::NoValue']
+      KmsKeyId: !If [StorageEncryptedConditon, !If [DefaultKmsCondition, !Ref 'AWS::NoValue',
+          !Ref 'KmsKeyId'], !Ref 'AWS::NoValue']
+      MonitoringInterval: !If [EnhancedMonitoringCondition, '60', !Ref 'AWS::NoValue']
+      MonitoringRoleArn: !If [EnhancedMonitoringCondition, !GetAtt 'EnhancedMonitoringRole.Arn',
         !Ref 'AWS::NoValue']
       Port: '5432'
       PubliclyAccessible: !Ref 'PubliclyAccessible'
+      SourceDBInstanceIdentifier: !Ref 'RdsInstance'
+      StorageEncrypted: !Ref 'StorageEncrypted'
+      StorageType: !Ref 'StorageType'
+      VPCSecurityGroups:
+      - !If [CreateSecurityGroupCondition, !Ref 'RdsSecurityGroup', !Ref 'SecurityGroup']
+    Type: AWS::RDS::DBInstance
+  RdsReadReplicaInstance2:
+    Condition: TwoDatabaseReadReplicaCondition
+    DependsOn: RdsInstance
+    Properties:
+      AllocatedStorage: !Ref 'StorageSize'
+      AllowMajorVersionUpgrade: 'false'
+      AutoMinorVersionUpgrade: 'true'
+      DBInstanceClass: !Ref 'DatabaseClass'
+      Engine: postgres
+      EngineVersion: !Ref 'DatabaseEngineVersion'
+      Iops: !If [IopsStorageCondition, !Ref 'StorageIops', !Ref 'AWS::NoValue']
+      KmsKeyId: !If [StorageEncryptedConditon, !If [DefaultKmsCondition, !Ref 'AWS::NoValue',
+          !Ref 'KmsKeyId'], !Ref 'AWS::NoValue']
+      MonitoringInterval: !If [EnhancedMonitoringCondition, '60', !Ref 'AWS::NoValue']
+      MonitoringRoleArn: !If [EnhancedMonitoringCondition, !GetAtt 'EnhancedMonitoringRole.Arn',
+        !Ref 'AWS::NoValue']
+      Port: '5432'
+      PubliclyAccessible: !Ref 'PubliclyAccessible'
+      SourceDBInstanceIdentifier: !Ref 'RdsInstance'
       StorageEncrypted: !Ref 'StorageEncrypted'
       StorageType: !Ref 'StorageType'
       VPCSecurityGroups:
