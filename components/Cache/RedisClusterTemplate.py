@@ -144,6 +144,7 @@ cache_cluster = t.add_resource(elasticache.CacheCluster(
     Engine='redis',
     CacheNodeType=Ref(param_cache_node_type),
     NumCacheNodes=Ref(param_cache_node_num),
+    CacheSubnetGroupName=Ref(cache_subnet_group),
     AutoMinorVersionUpgrade=True,
     VpcSecurityGroupIds=[
         If('CreateSecurityGroupCondition',
@@ -170,4 +171,6 @@ t.add_output([
 #
 # Write template
 #
-cfnutil.write(t, __file__.replace('Template.py', '.template.yaml'))
+cfnutil.write(t,
+              __file__.replace('Template.py', '.template.yaml'),
+              write_yaml=True)
