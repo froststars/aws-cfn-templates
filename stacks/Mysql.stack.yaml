@@ -1,7 +1,7 @@
 Stack:
   TemplateBody:   ../components/RDS/RDS.template.yaml
   Region:         us-east-1
-  StackName:      Boba-Postgres
+  StackName:      Boba-Mysql
   Capabilities:   [CAPABILITY_IAM]
 
   Tags:
@@ -14,8 +14,8 @@ Stack:
     VpcId:                  vpc-91c284e8
     SubnetIds:              subnet-667f113c,subnet-9d9567f9
     DatabaseClass:          db.t2.medium
-    DatabaseEngineVersion:  postgres
-    DatabaseEngineVersion:  postgres-9.6.1
+    DatabaseEngine:         mysql
+    DatabaseEngineVersion:  mysql-5.7.19
     DatabaseUser:           bob
     DatabasePassword:       1234567890
     DatabaseMultiAz:        false
