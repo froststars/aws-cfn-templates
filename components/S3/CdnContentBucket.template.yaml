@@ -1,4 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
+Conditions:
+  HasCorsOrigin: !Not [!Equals [!Ref 'CorsOrigin', '']]
 Description: Route53 origin content bucket
 Outputs:
   BucketArn:
@@ -11,6 +13,10 @@ Outputs:
     Description: IPv4 DNS name of the bucket
     Value: !GetAtt 'Bucket.DomainName'
 Parameters:
+  CorsOrigin:
+    Default: ''
+    Description: CORS origin
+    Type: String
   OriginAccessIdentity:
     AllowedPattern: '[A-Z0-9]+'
     ConstraintDescription: must be a valid OAI name
@@ -18,6 +24,10 @@ Parameters:
     Type: String
 Resources:
   Bucket:
+    Properties:
+      CorsConfiguration: !If [HasCorsOrigin, {CorsRules: [{AllowedHeaders: ['*'],
+              AllowedMethods: [GET, PUT, HEAD, POST, DELETE], AllowedOrigins: [!Ref 'CorsOrigin']}]},
+        !Ref 'AWS::NoValue']
     Type: AWS::S3::Bucket
   BucketPolicy:
     DependsOn: Bucket

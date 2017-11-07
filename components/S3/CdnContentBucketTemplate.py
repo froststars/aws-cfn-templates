@@ -3,8 +3,9 @@
 __author__ = 'kotaimen'
 __date__ = '14/07/2017'
 
-from troposphere import Sub, Export, Parameter, Join
+from troposphere import Sub, Export, Parameter, Join, If, Not, Equals
 from troposphere import Template, Ref, Output, GetAtt
+from troposphere import AWS_NO_VALUE
 
 import troposphere.s3 as s3
 import cfnutil
@@ -29,12 +30,38 @@ origin_access_identity = t.add_parameter(Parameter(
     ConstraintDescription='must be a valid OAI name'
 ))
 
+param_cors_origin = t.add_parameter(Parameter(
+    'CorsOrigin',
+    Description='CORS origin',
+    Default='',
+    Type='String',
+))
+#
+# Condition
+#
+t.add_condition(
+    'HasCorsOrigin',
+    Not(Equals(Ref(param_cors_origin), ''))
+)
+
 #
 # Resource
 #
 
 bucket = t.add_resource(s3.Bucket(
     'Bucket',
+    CorsConfiguration=If('HasCorsOrigin',
+                         s3.CorsConfiguration(
+                             CorsRules=[
+                                 s3.CorsRules(
+                                     AllowedHeaders=['*'],
+                                     AllowedMethods=['GET', 'PUT', 'HEAD',
+                                                     'POST', 'DELETE'],
+                                     AllowedOrigins=[Ref(param_cors_origin)],
+                                 )
+                             ]
+                         ),
+                         Ref(AWS_NO_VALUE))
 ))
 
 t.add_resource(s3.BucketPolicy(
