@@ -1,0 +1,16 @@
+Stack:
+  TemplateBody:   ../components/EFS/EFS.template.yaml
+  Region:         us-east-1
+  StackName:      Boba-Efs
+
+  Tags:
+    company:      Boba Bubble Tea Company
+    department:   Boobs
+    project:      Booba
+    assignee:     Bob
+
+  Parameters:
+    VpcId:        vpc-91c284e8
+    SubnetIds:    subnet-9d9567f9,subnet-54ebc31c,subnet-667f113c,subnet-caffedf6
+    NumberOfSubnets: 4
+    Encrypted:    'true'
