@@ -432,7 +432,7 @@ ssm_policy = {
             'Resource':
                 Sub(
                     'arn:${PARTITON}:s3:::aws-ssm-log-${AWS::Region}-${AWS::AccountId}/*',
-                    PARTITION=If('ChinaRegionCondition', 'aws-cn', 'aws')
+                    PARTITON=If('ChinaRegionCondition', 'aws-cn', 'aws')
                 ),
         }
     ]
