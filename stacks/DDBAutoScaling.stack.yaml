@@ -1,0 +1,12 @@
+Stack:
+  TemplateBody:   ../solutions/DynamoDbAutoscaling/DDBAutoScaling.template.yaml
+  Region:         us-east-1
+  StackName:      Boba-DDBAutoscaling
+  Capabilities:   [CAPABILITY_IAM]
+
+  Tags:
+    company:      Boba Bubble Tea Company
+    department:   Boobs
+    project:      Booba
+    assignee:     Bob
+
