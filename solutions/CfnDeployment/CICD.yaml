@@ -1,0 +1,19 @@
+Stack:
+  TemplateBody:   ../solutions/CICD/CfnCodePipeline.template.yaml
+  Region:         us-east-2
+  StackName:      DemoPipeline
+  Capabilities:   [CAPABILITY_IAM]
+
+  Tags:
+    company:      Bob
+    department:   Cloud
+    project:      Bob
+    assignee:     Ray
+
+  Parameters:
+    CfnStackName:       Demo
+    CfnRepoName:        DemoRepo
+    CfnRepoDescription: Demo Repository
+    ApprovalEmails:     kotaimen@pset.suntec.net
+    NumOfEmails:        1
+    UseStaging:         'no'

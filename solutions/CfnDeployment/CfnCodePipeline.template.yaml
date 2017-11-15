@@ -24,7 +24,7 @@ Parameters:
   CfnBuildSpec:
     Type: String
     Description: The filename of the CodeBuild build specification.
-    Default: "buildspec.yml"
+    Default: "buildspec.yaml"
   CfnExecutionRoleArn:
     Default: ''
     Description: CloudFormation execution role ARN, will create an execution
@@ -283,6 +283,7 @@ Resources:
               Configuration:
                 BranchName: master
                 RepositoryName: !Ref CfnRepoName
+                PollForSourceChanges: false
               OutputArtifacts:
                 - Name: CfnSourceArtifact
               RunOrder: 1
@@ -423,3 +424,55 @@ Resources:
               InputArtifacts:
                 - Name: CfnChangeSetArtifact
               RunOrder: 3
+
+  CodeCommitEventRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+      Policies:
+        -
+          PolicyName: CodePipelineAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - codepipeline:StartPipelineExecution
+                Effect: Allow
+                Resource:
+                  - Fn::Sub:
+                    - "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${PipelineName}"
+                    - PipelineName: !Ref Pipeline
+
+
+  CodeCommitEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - "aws.codecommit"
+        detail-type:
+          - "CodeCommit Repository State Change"
+        resources:
+          - Fn::GetAtt: CodeRepository.Arn
+        detail:
+          referenceType:
+            - "branch"
+          referenceName:
+            - "master"
+      State: "ENABLED"
+      Targets:
+        - Id: "CodePipelineTarget"
+          Arn:
+            Fn::Sub:
+              - "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${PipelineName}"
+              - PipelineName: !Ref Pipeline
+          RoleArn:
+            Fn::GetAtt: CodeCommitEventRole.Arn
+
