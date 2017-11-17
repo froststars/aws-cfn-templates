@@ -52,26 +52,23 @@ bucket = t.add_resource(s3.Bucket(
 
 #
 # Output
-
 #
+
 t.add_output([
     Output(
         'BucketName',
         Description='Bucket name',
         Value=Ref(bucket),
-        # Export=Export(Sub('${AWS::StackName}-BucketName'))
     ),
     Output(
         'BucketArn',
         Description='Amazon Resource Name the bucket',
         Value=GetAtt(bucket, 'Arn'),
-        # Export=Export(Sub('${AWS::StackName}-BucketArn'))
     ),
     Output(
         'DomainName',
         Description='IPv4 DNS name of the bucket',
         Value=GetAtt(bucket, 'DomainName'),
-        # Export=Export(Sub('${AWS::StackName}-DomainName'))
     ),
 ])
 

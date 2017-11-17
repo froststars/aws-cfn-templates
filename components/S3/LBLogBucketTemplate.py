@@ -5,7 +5,7 @@ __date__ = '22/12/2016'
 
 from troposphere import Retain, AWS_REGION, AWS_ACCOUNT_ID, AWS_NO_VALUE
 from troposphere import Parameter, Sub, Export, Equals, Not, Join, Condition
-from troposphere import Template, Ref, Output, FindInMap, If
+from troposphere import Template, Ref, Output, FindInMap, If, GetAtt
 
 import troposphere.s3 as s3
 
@@ -98,12 +98,15 @@ bucket_policy = t.add_resource(s3.BucketPolicy(
 t.add_output([
     Output(
         'BucketName',
-        Description='S3 bucket',
+        Description='Bucket name',
         Value=Ref(bucket),
-        # Export=Export(Sub('${AWS::StackName}-BucketName'))
-    )
+    ),
+    Output(
+        'BucketArn',
+        Description='Amazon Resource Name the bucket',
+        Value=GetAtt(bucket, 'Arn'),
+    ),
 ])
-
 #
 # Write
 #

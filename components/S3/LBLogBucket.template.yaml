@@ -38,8 +38,11 @@ Mappings:
     us-west-2:
       ID: '797873946194'
 Outputs:
+  BucketArn:
+    Description: Amazon Resource Name the bucket
+    Value: !GetAtt 'Bucket.Arn'
   BucketName:
-    Description: S3 bucket
+    Description: Bucket name
     Value: !Ref 'Bucket'
 Parameters:
   BucketName:
