@@ -336,6 +336,7 @@ Resources:
                 - cloudformation:DescribeChangeSet
                 - cloudformation:CreateChangeSet
                 - cloudformation:ExecuteChangeSet
+                - cloudformation:DeleteChangeSet
                 Effect: Allow
                 Resource: "*"
         -
