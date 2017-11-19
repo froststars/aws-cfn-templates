@@ -1,0 +1,31 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - pip install --upgrade awscli
+  pre_build:
+    commands:
+      - aws --version && git --version && pip --version && python --version
+  build:
+    commands:
+      - echo "Start validating and packaging templates..."
+      - mkdir -p cfndist
+      - cp $CFN_STAG_CONFIG cfndist/config.stag.json
+      - cp $CFN_PROD_CONFIG cfndist/config.prod.json
+      - cd $(dirname ${CFN_MASTER_TEMPLATE})
+      - aws cloudformation package
+          --template-file $(basename ${CFN_MASTER_TEMPLATE})
+          --s3-bucket $CFN_PACKAGE_BUCKET
+          --s3-prefix $CFN_ARTIFACT_PREFIX
+          --kms-key-id $CODEBUILD_KMS_KEY_ID
+          --output-template-file ${CODEBUILD_SRC_DIR}/cfndist/Packaged.Master.template
+      - echo "Package complete"
+
+artifacts:
+  files:
+    - Packaged.Master.template
+    - config.stag.json
+    - config.prod.json
+  base-directory: cfndist
+  discard-paths: yes

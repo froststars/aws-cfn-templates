@@ -1,52 +1,132 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: CodePipeline of AWS CloudFormation continuous delivery.
+Description: >
+  CodePipeline of AWS CloudFormation continuous delivery. See
+  "Continuous Delivery with AWS CodePipeline" in CloudFormation document
+  for concepts. Please note you must manually delete managed CloudFormation
+  stack and empty artifact bucket before delete this stack.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: CloudFormation Stack Configuration
+      Parameters:
+      - CfnStackName
+      - CfnExecutionRoleArn
+      - CfnTemplate
+      - CfnStagCfg
+      - CfnProdCfg
+    - Label:
+        default: CodeCommit Repository Configuration
+      Parameters:
+      - CfnRepoName
+      - CfnRepoDescription
+    - Label:
+        default: CodePipeline Build Configuration
+      Parameters:
+      - CfnBuildSpec
+      - UseStaging
+      - ApprovalEmails
+      - NumOfEmails
+    - Label:
+        default: Security Configuration
+      Parameters:
+      - KmsKey
+    ParameterLabels:
+      CfnStackName:
+        default: CloudFormation Stack Name
+      CfnExecutionRoleArn:
+        default: CloudFormation Execution Role ARN
+      CfnTemplate:
+        default: Main CloudFormation Template
+      CfnStagCfg:
+        default: Staging Stack Config
+      CfnProdCfg:
+        default: Production Stack Config
+      CfnRepoName:
+        default: CodeCommit Repository Name
+      CfnRepoDescription:
+        default: CodeCommit Repository Name Description
+      CfnBuildSpec:
+        default: CodeBuild Build Specfication
+      UseStaging:
+        default: Uses Staging
+      ApprovalEmails:
+        default: Approval Emails
+      NumOfEmails:
+        default: Number of Emails
+      KmsKey:
+        default: KMS Key
 
 Parameters:
   CfnStackName:
     Type: String
     Default: Bob
-    Description: Master CloudFormation stack name managed by the pipeline.
+    Description: Managed CloudFormation stack name, must be unique in the region
+      for your AWS account.
     AllowedPattern: "[a-zA-Z][a-zA-Z0-9-]*"
+  CfnExecutionRoleArn:
+    Default: ''
+    Description: CloudFormation execution role ARN.  If this is left empty,
+      a new execution role with AdministratorAccess will be created
+      automaticlly.
+    Type: String
+  CfnTemplate:
+    Type: String
+    Description: Main CloudFormation template file name.
+    Default: "solutions/Main.template.yaml"
+  CfnStagCfg:
+    Type: String
+    Description: CloudFormation Staging stack configuration file name.
+    Default: "config.stag.json"
+  CfnProdCfg:
+    Type: String
+    Description: CloudFormation Staging stack configuration file name.
+    Default: "config.prod.json"
   CfnRepoName:
     Type: String
     Default: Bob
     AllowedPattern: "[a-zA-Z][a-zA-Z0-9-_]*"
     MinLength: 1
     MaxLength: 100
-    Description: Project name, used in CodeCommit repository name, must be
-      unique across regions.
+    Description: CodeCommit repository name, must be unique in the region
+      for your AWS account.
   CfnRepoDescription:
     Type: String
-    Default: "No Description"
+    Default: Repository description
     MinLength: 1
     MaxLength: 100
-    Description: Project description
+    Description: CodeCommit repository description.
   CfnBuildSpec:
     Type: String
-    Description: The filename of the CodeBuild build specification.
+    Description: Name of the CodeBuild build specification file.
     Default: "buildspec.yaml"
-  CfnExecutionRoleArn:
-    Default: ''
-    Description: CloudFormation execution role ARN, will create an execution
-      role with AdministratorAccess if this is left empty.
-    Type: String
   ApprovalEmails:
     Default: nobody@amazon.com
-    Description: List of comma delimited email addresses to send spproval messages.
+    Description: List of comma delimited email addresses to send spproval
+      messages to.  Note recipents must suscribe to the SNS topic first
+      before they can receive approval mails.
     Type: CommaDelimitedList
   NumOfEmails:
-    Default: '1'
+    Default: 1
     Description: Number of email addresses in ApprovalEmails.
-    Type: String
+    MinValue: 1
+    MaxValue: 6
+    Type: Number
   UseStaging:
     Type: String
     AllowedValues:
       - 'yes'
       - 'no'
-    Default: 'yes'
-    Description: Whether creat a step in codepipeline for validation
-      templates in staging stack, turn this off in a development enviorment.
-
+    Default: 'no'
+    Description: Whether to creat additional step in CodePipeline for
+      validate templates in another staging stack, turn this off in
+      a development enviorment.
+  KmsKey:
+    Default: 'AWS/S3'
+    Description: KMS key Id or ARN to encrypt artifacts in S3 bucket, this
+      affects CodePipeline, CodeBuild and CloudFormation Package artifacts.
+    Type: String
 
 Conditions:
   SixEmailsCondition: !Equals [!Ref 'NumOfEmails', '6']
@@ -136,14 +216,12 @@ Resources:
     Type: AWS::CodeBuild::Project
     Properties:
       Name:
-        Fn::Sub: ${AWS::StackName}-CfnCodeBuild-${AWS::Region}
+        Fn::Sub: CfnBuilder-${AWS::StackName}-${AWS::Region}
       Description: Build, validate and package CloudFormation templates.
-      ServiceRole:
-        Fn::GetAtt: [CodeBuildRole, Arn]
+      ServiceRole: !GetAtt CodeBuildRole.Arn
       Source:
         Type: CODEPIPELINE
-        BuildSpec:
-          Ref: CfnBuildSpec
+        BuildSpec: !Ref CfnBuildSpec
       Artifacts:
         Type: CODEPIPELINE
       Environment:
@@ -153,6 +231,16 @@ Resources:
         EnvironmentVariables:
           - Name: CFN_PACKAGE_BUCKET
             Value: !Ref ArtifactStore
+          - Name: CFN_ARTIFACT_PREFIX
+            Value: !Ref AWS::StackName
+          - Name: CFN_MASTER_TEMPLATE
+            Value: !Ref CfnTemplate
+          - Name: CFN_STAG_CONFIG
+            Value: !Ref CfnStagCfg
+          - Name: CFN_PROD_CONFIG
+            Value: !Ref CfnProdCfg
+
+      EncryptionKey: !Ref KmsKey
 
   CloudFormationExecutionRole:
     Type: AWS::IAM::Role
@@ -267,6 +355,9 @@ Resources:
         Type: S3
         Location:
           !Ref ArtifactStore
+        EncryptionKey:
+          Type: KMS
+          Id: !Ref KmsKey
       RoleArn:
         Fn::GetAtt:
           - PipelineRole
@@ -323,10 +414,8 @@ Resources:
                       - !GetAtt CloudFormationExecutionRole.Arn
                       - !Ref CfnExecutionRoleArn
                   Capabilities: CAPABILITY_NAMED_IAM
-                  StackName:
-                    Fn::Sub: "${CfnStackName}-Staging"
-                  TemplateConfiguration:
-                    Fn::Sub: "CfnBuildArtifact::config.test.json"
+                  StackName: !Sub "${CfnStackName}-Staging"
+                  TemplateConfiguration: "CfnBuildArtifact::config.stag.json"
                   TemplatePath: "CfnBuildArtifact::Packaged.Master.template"
                 InputArtifacts:
                   - Name: CfnBuildArtifact
@@ -357,8 +446,7 @@ Resources:
                       - 'CreateExecutionRoleCondition'
                       - !GetAtt CloudFormationExecutionRole.Arn
                       - !Ref CfnExecutionRoleArn
-                  StackName:
-                    Fn::Sub: "${CfnStackName}-Staging"
+                  StackName: !Sub "${CfnStackName}-Staging"
                 OutputArtifacts:
                   - Name: ProceedToProduction
                 RunOrder: 3
@@ -374,18 +462,15 @@ Resources:
                 Provider: CloudFormation
               Configuration:
                 ActionMode: CHANGE_SET_REPLACE
-                ChangeSetName:
-                  Fn::Sub: "${CfnStackName}-ChangeSet"
+                ChangeSetName: !Sub "${CfnStackName}-ChangeSet"
                 RoleArn:
                   Fn::If:
                     - 'CreateExecutionRoleCondition'
                     - !GetAtt CloudFormationExecutionRole.Arn
                     - !Ref CfnExecutionRoleArn
                 Capabilities: CAPABILITY_NAMED_IAM
-                StackName:
-                  Fn::Sub: "${CfnStackName}"
-                TemplateConfiguration:
-                  Fn::Sub: "CfnBuildArtifact::config.prod.json"
+                StackName: !Sub "${CfnStackName}"
+                TemplateConfiguration: "CfnBuildArtifact::config.prod.json"
                 TemplatePath: "CfnBuildArtifact::Packaged.Master.template"
               InputArtifacts:
                 - Name: CfnBuildArtifact
@@ -476,3 +561,13 @@ Resources:
           RoleArn:
             Fn::GetAtt: CodeCommitEventRole.Arn
 
+Outputs:
+  ArtifactStore:
+    Description: Artifact storage bucket
+    Value: !Ref ArtifactStore
+  RepositoryCloneUrlHttp:
+    Description: GIT http clone url
+    Value: !GetAtt CodeRepository.CloneUrlHttp
+  RepositoryCloneUrlSsh:
+    Description: GIT ssh clone url
+    Value: !GetAtt CodeRepository.CloneUrlSsh
