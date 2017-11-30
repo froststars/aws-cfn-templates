@@ -67,36 +67,36 @@ Mappings:
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-    - Label:
-        default: Network Configuration
-      Parameters:
-      - VpcId
-      - SubnetId
-      - AllocateElasticIp
-      - AssociatePublicIp
-    - Label:
-        default: Instance Configuration
-      Parameters:
-      - KeyName
-      - UbuntuVersion
-      - InstanceType
-      - DetailedMonitoring
-      - InstanceSecurityGroupId
-      - InstanceProfileArn
-    - Label:
-        default: EBS Volume Configuration
-      Parameters:
-      - EbsOptimized
-      - Volume1Size
-      - Volume1Type
-      - Volume1Iops
-      - Volume1Device
-      - VolumeEncryptionKey
-    - Label:
-        default: Security & Log Configuration
-      Parameters:
-      - SshLocation
-      - LogGroupName
+      - Label:
+          default: Network Configuration
+        Parameters:
+          - VpcId
+          - SubnetId
+          - AllocateElasticIp
+          - AssociatePublicIp
+      - Label:
+          default: Instance Configuration
+        Parameters:
+          - KeyName
+          - UbuntuVersion
+          - InstanceType
+          - DetailedMonitoring
+          - InstanceSecurityGroupId
+          - InstanceProfileArn
+      - Label:
+          default: EBS Volume Configuration
+        Parameters:
+          - EbsOptimized
+          - Volume1Size
+          - Volume1Type
+          - Volume1Iops
+          - Volume1Device
+          - VolumeEncryptionKey
+      - Label:
+          default: Security & Log Configuration
+        Parameters:
+          - SshLocation
+          - LogGroupName
     ParameterLabels:
       AllocateElasticIp:
         default: Allocate Elastic Ip
@@ -152,32 +152,32 @@ Outputs:
 Parameters:
   AllocateElasticIp:
     AllowedValues:
-    - 'true'
-    - 'false'
+      - 'true'
+      - 'false'
     Default: 'false'
     Description: Allocate a ElaticIP and assoicate it to instance
     Type: String
   AssociatePublicIp:
     AllowedValues:
-    - 'true'
-    - 'false'
+      - 'true'
+      - 'false'
     Default: 'true'
     Description: Assoicate a public IP to instance, default means use subnet default
       setting, otherwise SSM and CloudwatchLogs won't initalize properly
     Type: String
   DetailedMonitoring:
     AllowedValues:
-    - 'true'
-    - 'false'
+      - 'true'
+      - 'false'
     Default: 'false'
     Description: Whether uses detailed 1 minute monitoring interval, which requires
       additional charge
     Type: String
   EbsOptimized:
     AllowedValues:
-    - default
-    - 'true'
-    - 'false'
+      - default
+      - 'true'
+      - 'false'
     Default: default
     Description: Whether instance is EBS optimized, default means use default value
       of selected instance type
@@ -194,83 +194,100 @@ Parameters:
     Type: String
   InstanceType:
     AllowedValues:
-    - c1.medium
-    - c1.xlarge
-    - c3.2xlarge
-    - c3.4xlarge
-    - c3.8xlarge
-    - c3.large
-    - c3.xlarge
-    - c4.2xlarge
-    - c4.4xlarge
-    - c4.8xlarge
-    - c4.large
-    - c4.xlarge
-    - cc2.8xlarge
-    - cr1.8xlarge
-    - d2.2xlarge
-    - d2.4xlarge
-    - d2.8xlarge
-    - d2.xlarge
-    - g2.2xlarge
-    - g2.8xlarge
-    - g3.16xlarge
-    - g3.4xlarge
-    - g3.8xlarge
-    - hi1.4xlarge
-    - hs1.8xlarge
-    - i2.2xlarge
-    - i2.4xlarge
-    - i2.8xlarge
-    - i2.xlarge
-    - i3.16xlarge
-    - i3.2xlarge
-    - i3.4xlarge
-    - i3.8xlarge
-    - i3.large
-    - i3.xlarge
-    - m1.large
-    - m1.medium
-    - m1.small
-    - m1.xlarge
-    - m2.2xlarge
-    - m2.4xlarge
-    - m2.xlarge
-    - m3.2xlarge
-    - m3.large
-    - m3.medium
-    - m3.xlarge
-    - m4.10xlarge
-    - m4.16xlarge
-    - m4.2xlarge
-    - m4.4xlarge
-    - m4.large
-    - m4.xlarge
-    - p2.16xlarge
-    - p2.8xlarge
-    - p2.xlarge
-    - r3.2xlarge
-    - r3.4xlarge
-    - r3.8xlarge
-    - r3.large
-    - r3.xlarge
-    - r4.16xlarge
-    - r4.2xlarge
-    - r4.4xlarge
-    - r4.8xlarge
-    - r4.large
-    - r4.xlarge
-    - t1.micro
-    - t2.2xlarge
-    - t2.large
-    - t2.medium
-    - t2.micro
-    - t2.nano
-    - t2.small
-    - t2.xlarge
-    - x1.16xlarge
-    - x1.32xlarge
-    - x1e.32xlarge
+      - c1.medium
+      - c1.xlarge
+      - c3.2xlarge
+      - c3.4xlarge
+      - c3.8xlarge
+      - c3.large
+      - c3.xlarge
+      - c4.16xlarge
+      - c4.2xlarge
+      - c4.4xlarge
+      - c4.8xlarge
+      - c4.large
+      - c4.xlarge
+      - c5.18xlarge
+      - c5.2xlarge
+      - c5.4xlarge
+      - c5.9xlarge
+      - c5.large
+      - c5.xlarge
+      - cc2.8xlarge
+      - cr1.8xlarge
+      - d2.2xlarge
+      - d2.4xlarge
+      - d2.8xlarge
+      - d2.xlarge
+      - g2.2xlarge
+      - g2.8xlarge
+      - g3.16xlarge
+      - g3.4xlarge
+      - g3.8xlarge
+      - h1.16xlarge
+      - h1.2xlarge
+      - h1.4xlarge
+      - h1.8xlarge
+      - hi1.4xlarge
+      - hs1.8xlarge
+      - i2.2xlarge
+      - i2.4xlarge
+      - i2.8xlarge
+      - i2.xlarge
+      - i3.16xlarge
+      - i3.2xlarge
+      - i3.4xlarge
+      - i3.8xlarge
+      - i3.large
+      - i3.xlarge
+      - m1.large
+      - m1.medium
+      - m1.small
+      - m1.xlarge
+      - m2.2xlarge
+      - m2.4xlarge
+      - m2.xlarge
+      - m3.2xlarge
+      - m3.large
+      - m3.medium
+      - m3.xlarge
+      - m4.10xlarge
+      - m4.16xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+      - m4.large
+      - m4.xlarge
+      - m5.12xlarge
+      - m5.24xlarge
+      - m5.2xlarge
+      - m5.4xlarge
+      - m5.large
+      - m5.xlarge
+      - p2.16xlarge
+      - p2.8xlarge
+      - p2.xlarge
+      - r3.2xlarge
+      - r3.4xlarge
+      - r3.8xlarge
+      - r3.large
+      - r3.xlarge
+      - r4.16xlarge
+      - r4.2xlarge
+      - r4.4xlarge
+      - r4.8xlarge
+      - r4.large
+      - r4.xlarge
+      - t1.micro
+      - t2.2xlarge
+      - t2.large
+      - t2.medium
+      - t2.micro
+      - t2.nano
+      - t2.small
+      - t2.xlarge
+      - x1.16xlarge
+      - x1.32xlarge
+      - x1e.32xlarge
     ConstraintDescription: must be a valid EC2 instance type.
     Default: t2.small
     Description: EC2 instance type
@@ -303,25 +320,25 @@ Parameters:
     Type: AWS::EC2::Subnet::Id
   UbuntuVersion:
     AllowedValues:
-    - artful
-    - xenial
-    - trusty
+      - artful
+      - xenial
+      - trusty
     Default: xenial
     Description: Ubuntu version (only LTS are allowed)
     Type: String
   Volume1Device:
     AllowedValues:
-    - /dev/xvdf
-    - /dev/xvdg
-    - /dev/xvdh
-    - /dev/xvdi
-    - /dev/xvdj
-    - /dev/xvdk
-    - /dev/xvdl
-    - /dev/xvdm
-    - /dev/xvdn
-    - /dev/xvdo
-    - /dev/xvdp
+      - /dev/xvdf
+      - /dev/xvdg
+      - /dev/xvdh
+      - /dev/xvdi
+      - /dev/xvdj
+      - /dev/xvdk
+      - /dev/xvdl
+      - /dev/xvdm
+      - /dev/xvdn
+      - /dev/xvdo
+      - /dev/xvdp
     Default: /dev/xvdf
     Description: Volume device name
     Type: String
@@ -343,11 +360,11 @@ Parameters:
     Type: Number
   Volume1Type:
     AllowedValues:
-    - gp2
-    - io1
-    - st1
-    - sc1
-    - standard
+      - gp2
+      - io1
+      - st1
+      - sc1
+      - standard
     Default: gp2
     Description: EBS volume type
     Type: String
@@ -377,42 +394,42 @@ Resources:
   InstanceProfile:
     Properties:
       Roles:
-      - !Ref 'InstanceRole'
+        - !Ref 'InstanceRole'
     Type: AWS::IAM::InstanceProfile
   InstanceRole:
     Properties:
       AssumeRolePolicyDocument:
         Statement:
-        - Action:
-          - sts:AssumeRole
-          Effect: Allow
-          Principal:
-            Service:
-            - !If [ChinaRegionCondition, ec2.amazonaws.com.cn, ec2.amazonaws.com]
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - !If [ChinaRegionCondition, ec2.amazonaws.com.cn, ec2.amazonaws.com]
       ManagedPolicyArns: []
       Policies:
-      - PolicyDocument:
-          Statement:
-          - Action:
-            - logs:CreateLogGroup
-            - logs:CreateLogStream
-            - logs:PutLogEvents
-            - logs:DescribeLogStreams
-            Effect: Allow
-            Resource:
-            - !Sub ['arn:${PARTITION}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*',
-              {PARTITION: !If [ChinaRegionCondition, aws-cn, aws]}]
-          Version: '2012-10-17'
-        PolicyName: AWSLogs
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                Effect: Allow
+                Resource:
+                  - !Sub ['arn:${PARTITION}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*',
+                    {PARTITION: !If [ChinaRegionCondition, aws-cn, aws]}]
+            Version: '2012-10-17'
+          PolicyName: AWSLogs
     Type: AWS::IAM::Role
   SshSecurityGroup:
     Properties:
       GroupDescription: Enable SSH access via port 22
       SecurityGroupIngress:
-      - CidrIp: !Ref 'SshLocation'
-        FromPort: '22'
-        IpProtocol: tcp
-        ToPort: '22'
+        - CidrIp: !Ref 'SshLocation'
+          FromPort: '22'
+          IpProtocol: tcp
+          ToPort: '22'
       VpcId: !Ref 'VpcId'
     Type: AWS::EC2::SecurityGroup
   UbuntuInstance:
@@ -457,8 +474,8 @@ Resources:
                 enabled: 'true'
                 ensureRunning: 'true'
                 files:
-                - /etc/cfn/cfn-hup.conf
-                - /etc/cfn/hooks.d/cfn-auto-reloader.conf
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf
         InstallAWSTools:
           commands:
             01_download_awslogs:
@@ -481,25 +498,10 @@ Resources:
               group: ubuntu
               owner: ubuntu
             /tmp/awslogs.conf:
-              content: !Sub ['[general]
-
-                  state_file= /var/awslogs/agent-state
-
-                  [/var/log/syslog]
-
-                  datetime_format = %b %d %H:%M:%S
-
-                  file = /var/log/syslog
-
-                  buffer_duration = 5000
-
-                  initial_position = start_of_file
-
-                  log_group_name = ${LOG_GROUP_NAME}
-
-                  log_stream_name = ${AWS::StackName}/{instance_id}/syslog
-
-                  ', {LOG_GROUP_NAME: !Ref 'LogGroupName'}]
+              content: !Sub ["[general]\nstate_file= /var/awslogs/agent-state\n[/var/log/syslog]\n\
+                  datetime_format = %b %d %H:%M:%S\nfile = /var/log/syslog\nbuffer_duration\
+                  \ = 5000\ninitial_position = start_of_file\nlog_group_name = ${LOG_GROUP_NAME}\n\
+                  log_stream_name = ${AWS::StackName}/{instance_id}/syslog\n", {LOG_GROUP_NAME: !Ref 'LogGroupName'}]
               group: root
               mode: '000400'
               owner: root
@@ -511,12 +513,12 @@ Resources:
         InstallPackages: {}
         configSets:
           Bootstrap:
-          - ConfigCFNTools
-          - InstallAWSTools
-          - InstallPackages
+            - ConfigCFNTools
+            - InstallAWSTools
+            - InstallPackages
           Update:
-          - ConfigCFNTools
-          - InstallPackages
+            - ConfigCFNTools
+            - InstallPackages
     Properties:
       EbsOptimized: !If [DefaultEbsOptimizationCondition, !Ref 'AWS::NoValue', !Ref 'EbsOptimized']
       IamInstanceProfile: !If [CreateInstanceProfileCondition, !Ref 'InstanceProfile',
@@ -526,56 +528,27 @@ Resources:
       KeyName: !Ref 'KeyName'
       Monitoring: !Ref 'DetailedMonitoring'
       NetworkInterfaces:
-      - AssociatePublicIpAddress: !Ref 'AssociatePublicIp'
-        DeleteOnTermination: 'true'
-        DeviceIndex: '0'
-        GroupSet:
-        - !If [CreateSecurityGroupCondition, !Ref 'SshSecurityGroup', !Ref 'InstanceSecurityGroupId']
-        SubnetId: !Ref 'SubnetId'
+        - AssociatePublicIpAddress: !Ref 'AssociatePublicIp'
+          DeleteOnTermination: 'true'
+          DeviceIndex: '0'
+          GroupSet:
+            - !If [CreateSecurityGroupCondition, !Ref 'SshSecurityGroup', !Ref 'InstanceSecurityGroupId']
+          SubnetId: !Ref 'SubnetId'
       Tags:
-      - Key: Name
-        Value: !Ref 'AWS::StackName'
+        - Key: Name
+          Value: !Ref 'AWS::StackName'
       UserData: !Base64
-        Fn::Sub: '#!/bin/bash -xe
-
-          sudo apt-get -yq update
-
-          sudo apt-get -yq install python-setuptools python-pip
-
-
-          # Install cfn-tools
-
-          sudo pip install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-
-          sudo cp /usr/local/init/ubuntu/cfn-hup /etc/init.d/cfn-hup
-
-          sudo chmod +x /etc/init.d/cfn-hup
-
-          sudo update-rc.d cfn-hup defaults
-
-
-          # Run cfn-init
-
-          cfn-init -v --stack ${AWS::StackName} --resource UbuntuInstance --configsets
-          Bootstrap --region ${AWS::Region}
-
-          cfn-signal -e $? --stack ${AWS::StackName} --resource UbuntuInstance --region
-          ${AWS::Region}
-
-
-          # Install Simple System Manager
-
-          # cd /tmp
-
-          # sudo curl https://amazon-ssm-${AWS::Region}.s3.amazonaws.com/latest/debian_amd64/amazon-ssm-agent.deb
-          -o amazon-ssm-agent.deb
-
-          # sudo dpkg -i amazon-ssm-agent.deb
-
-          # sudo start amazon-ssm-agent
-
-
-          '
+        Fn::Sub: "#!/bin/bash -xe\nsudo apt-get -yq update\nsudo apt-get -yq install\
+          \ python-setuptools python-pip\n\n# Install cfn-tools\nsudo pip install\
+          \ https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz\n\
+          sudo cp /usr/local/init/ubuntu/cfn-hup /etc/init.d/cfn-hup\nsudo chmod +x\
+          \ /etc/init.d/cfn-hup\nsudo update-rc.d cfn-hup defaults\n\n# Run cfn-init\n\
+          cfn-init -v --stack ${AWS::StackName} --resource UbuntuInstance --configsets\
+          \ Bootstrap --region ${AWS::Region}\ncfn-signal -e $? --stack ${AWS::StackName}\
+          \ --resource UbuntuInstance --region ${AWS::Region}\n\n# Install Simple\
+          \ System Manager\n# cd /tmp\n# sudo curl https://amazon-ssm-${AWS::Region}.s3.amazonaws.com/latest/debian_amd64/amazon-ssm-agent.deb\
+          \ -o amazon-ssm-agent.deb\n# sudo dpkg -i amazon-ssm-agent.deb\n# sudo start\
+          \ amazon-ssm-agent\n\n"
     Type: AWS::EC2::Instance
   Volume1:
     Condition: Volume1Condition
@@ -586,8 +559,8 @@ Resources:
       KmsKeyId: !If [VolumeEncryptedCondition, !Ref 'VolumeEncryptionKey', !Ref 'AWS::NoValue']
       Size: !Ref 'Volume1Size'
       Tags:
-      - Key: Name
-        Value: !Ref 'AWS::StackName'
+        - Key: Name
+          Value: !Ref 'AWS::StackName'
       VolumeType: !Ref 'Volume1Type'
     Type: AWS::EC2::Volume
   Volume1Attachment:

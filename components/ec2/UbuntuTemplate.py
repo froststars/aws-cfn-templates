@@ -757,4 +757,5 @@ t.add_output([
 #
 # Write template
 #
-cfnutil.write(t, __file__.replace('Template.py', '.template.yaml'))
+cfnutil.write(t, __file__.replace('Template.py', '.template.yaml'),
+              write_yaml=True)
