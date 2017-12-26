@@ -1,1 +1,17 @@
-{"Parameters":{}}
+{
+  "Parameters": {
+  },
+  "Tags": {
+    "Enviornment": "Staging"
+  },
+  "StackPolicy": {
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Action": "*",
+        "Principal": "*",
+        "Resource": "*"
+      }
+    ]
+  }
+}

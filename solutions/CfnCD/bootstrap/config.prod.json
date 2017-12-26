@@ -1,1 +1,17 @@
-{"Parameters":{}}
+{
+  "Parameters": {
+  },
+  "Tags": {
+    "Enviornment": "Production"
+  },
+  "StackPolicy": {
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Action": "*",
+        "Principal": "*",
+        "Resource": "*"
+      }
+    ]
+  }
+}
