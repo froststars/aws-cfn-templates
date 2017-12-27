@@ -12,10 +12,8 @@ Stack:
 
   Parameters:
     CfnStackName:       DemoStack
-    CfnRepoName:        DemoRepo
-    CfnRepoDescription: Demo Repository
     ApprovalEmails:     bob@somewhere.com
     NumOfEmails:        1
     UseStaging:         "no"
-    KmsKey: "fe94ab5f-f381-4c3f-a6a0-83928c5e765d"
+    KmsKey:             "fe94ab5f-f381-4c3f-a6a0-83928c5e765d"
 

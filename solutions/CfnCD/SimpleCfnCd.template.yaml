@@ -19,8 +19,7 @@ Metadata:
     - Label:
         default: CodeCommit Repository Configuration
       Parameters:
-      - CfnRepoName
-      - CfnRepoDescription
+      - CfnRepoArn
     - Label:
         default: CodePipeline Build Configuration
       Parameters:
@@ -43,10 +42,8 @@ Metadata:
         default: Staging Stack Config
       CfnProdCfg:
         default: Production Stack Config
-      CfnRepoName:
-        default: CodeCommit Repository Name
-      CfnRepoDescription:
-        default: CodeCommit Repository Name Description
+      CfnRepoArn:
+        default: Existing CodeCommit Repository Arn
       CfnBuildSpec:
         default: CodeBuild Build Specfication
       UseStaging:
@@ -68,7 +65,7 @@ Parameters:
   CfnExecutionRoleArn:
     Default: ''
     Description: CloudFormation execution role ARN.  If this is left empty,
-      a new execution role with AdministratorAccess will be created
+      a new execution role with AdministratorAccess will be created.
       automaticlly.
     Type: String
   CfnTemplate:
@@ -83,20 +80,11 @@ Parameters:
     Type: String
     Description: CloudFormation Staging stack configuration file name.
     Default: "config.prod.json"
-  CfnRepoName:
+  CfnRepoArn:
     Type: String
-    Default: Bob
-    AllowedPattern: "[a-zA-Z][a-zA-Z0-9-_]*"
-    MinLength: 1
-    MaxLength: 100
-    Description: CodeCommit repository name, must be unique in the region
-      for your AWS account.
-  CfnRepoDescription:
-    Type: String
-    Default: Repository description
-    MinLength: 1
-    MaxLength: 100
-    Description: CodeCommit repository description.
+    Default: ''
+    Description: CodeCommit repository ARN. If this is left empty,
+      a new repository will be created.
   CfnBuildSpec:
     Type: String
     Description: Name of the CodeBuild build specification file.
@@ -139,8 +127,8 @@ Conditions:
   TwoEmailsCondition: !Or [!Equals [!Ref 'NumOfEmails', '6'], !Equals [!Ref 'NumOfEmails',
       '5'], !Equals [!Ref 'NumOfEmails', '4'], !Equals [!Ref 'NumOfEmails', '3'],
     !Equals [!Ref 'NumOfEmails', '2']]
-  ChinaRegionCondition: !Equals [!Ref 'AWS::Region', cn-north-1]
   CreateExecutionRoleCondition: !Equals [!Ref 'CfnExecutionRoleArn', '']
+  CreateCodeRepoCondition: !Equals [!Ref 'CfnRepoArn', '']
   UseStagingCondition: !Equals [!Ref 'UseStaging', 'yes']
 
 Resources:
@@ -150,9 +138,10 @@ Resources:
 
   CodeRepository:
     Type: "AWS::CodeCommit::Repository"
+    Condition: CreateCodeRepoCondition
     Properties:
-      RepositoryName: !Ref CfnRepoName
-      RepositoryDescription: !Ref CfnRepoDescription
+      RepositoryName: !Sub "${CfnStackName}-Repo"
+      RepositoryDescription: !Sub "The repository of ${CfnStackName}"
 
   ApprovalTopic:
     Properties:
@@ -203,7 +192,10 @@ Resources:
                 Action:
                   - codecommit:GitPull
                 Resource:
-                  - !GetAtt CodeRepository.Arn
+                  - Fn::If:
+                      - 'CreateCodeRepoCondition'
+                      - !GetAtt CodeRepository.Arn
+                      - !Ref CfnRepoArn
         -
           PolicyName: S3Access
           PolicyDocument:
@@ -290,7 +282,10 @@ Resources:
                   - codecommit:UploadArchive
                 Effect: Allow
                 Resource:
-                  - !GetAtt CodeRepository.Arn
+                  - Fn::If:
+                    - 'CreateCodeRepoCondition'
+                    - !GetAtt CodeRepository.Arn
+                    - !Ref CfnRepoArn
         -
           PolicyName: S3Access
           PolicyDocument:
@@ -382,7 +377,14 @@ Resources:
                 Provider: CodeCommit
               Configuration:
                 BranchName: master
-                RepositoryName: !Ref CfnRepoName
+                RepositoryName: !Select
+                  - 5
+                  - !Split
+                    - ":"
+                    - Fn::If:
+                      - 'CreateCodeRepoCondition'
+                      - !GetAtt CodeRepository.Arn
+                      - !Ref CfnRepoArn
                 PollForSourceChanges: false
               OutputArtifacts:
                 - Name: CfnSourceArtifact
@@ -554,7 +556,10 @@ Resources:
         detail-type:
           - "CodeCommit Repository State Change"
         resources:
-          - Fn::GetAtt: CodeRepository.Arn
+          - Fn::If:
+            - 'CreateCodeRepoCondition'
+            - !GetAtt CodeRepository.Arn
+            - !Ref CfnRepoArn
         detail:
           referenceType:
             - "branch"
@@ -568,15 +573,17 @@ Resources:
               - "arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${PipelineName}"
               - PipelineName: !Ref Pipeline
           RoleArn:
-            Fn::GetAtt: CodeCommitEventRole.Arn
+            !GetAtt CodeCommitEventRole.Arn
 
 Outputs:
   ArtifactStore:
     Description: Artifact storage bucket
     Value: !Ref ArtifactStore
   RepositoryCloneUrlHttp:
+    Condition: CreateCodeRepoCondition
     Description: GIT http clone url
     Value: !GetAtt CodeRepository.CloneUrlHttp
   RepositoryCloneUrlSsh:
+    Condition: CreateCodeRepoCondition
     Description: GIT ssh clone url
     Value: !GetAtt CodeRepository.CloneUrlSsh
