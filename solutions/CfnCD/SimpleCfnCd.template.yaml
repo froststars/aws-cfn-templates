@@ -195,16 +195,24 @@ Resources:
                   - logs:PutLogEvents
                 Resource: "*"
         -
+          PolicyName: CodeCommitAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - codecommit:GitPull
+                Resource:
+                  - !GetAtt CodeRepository.Arn
+        -
           PolicyName: S3Access
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Action:
-                - s3:ListBucket
                 - s3:GetObject
                 - s3:GetObjectVersion
                 - s3:PutObject
-                - s3:PutObjectVersion
                 Effect: Allow
                 Resource:
                   - !GetAtt ArtifactStore.Arn
