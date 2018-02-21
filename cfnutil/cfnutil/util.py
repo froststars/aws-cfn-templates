@@ -36,6 +36,6 @@ def write(template, filename, write_yaml=True):
     assert isinstance(template, troposphere.Template)
     with open(filename, 'w') as f:
         if write_yaml:
-            f.write(cfn_flip.to_yaml(template.to_json(), clean_up=True))
+            f.write(template.to_yaml())
         else:
             f.write(template.to_json(indent=2))
