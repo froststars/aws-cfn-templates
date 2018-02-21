@@ -1,17 +1,19 @@
 REGION,HVM64,HVM64I,PV64,PV64I,HVMNAT,HVMG
-us-east-1,ami-8c1be5f6,ami-a518e6df,ami-fe16e884,ami-ec19e796,ami-b419e7ce,AWS Marketplace
-us-east-2,ami-c5062ba0,ami-6b012c0e,n/a,n/a,ami-8c002de9,n/a
-us-west-2,ami-e689729e,ami-01897279,ami-e389729b,ami-d8906ba0,ami-d08b70a8,AWS Marketplace
-us-west-1,ami-02eada62,ami-d7eadab7,ami-fce9d99c,ami-d1eadab1,ami-36ebdb56,AWS Marketplace
-ca-central-1,ami-fd55ec99,ami-be54edda,n/a,n/a,ami-f055ec94,n/a
-eu-west-1,ami-acd005d5,ami-aed005d7,ami-07df0a7e,ami-acd207d5,ami-38d20741,AWS Marketplace
-eu-west-2,ami-1a7f6d7e,ami-677f6d03,n/a,n/a,ami-e07d6f84,n/a
-eu-central-1,ami-c7ee5ca8,ami-feef5d91,ami-66ec5e09,ami-58ec5e37,ami-3cec5e53,AWS Marketplace
-ap-southeast-1,ami-0797ea64,ami-ca96eba9,ami-5a91ec39,ami-0697ea65,ami-0597ea66,AWS Marketplace
-ap-northeast-2,ami-9bec36f5,ami-a3ed37cd,n/a,n/a,ami-61e03a0f,n/a
-ap-northeast-1,ami-2a69be4c,ami-8068bfe6,ami-05964063,ami-c59543a3,ami-17944271,AWS Marketplace
-ap-southeast-2,ami-8536d6e7,ami-8236d6e0,ami-f137d793,ami-8f36d6ed,ami-2c37d74e,AWS Marketplace
-ap-south-1,ami-4fc58420,ami-e3c2838c,n/a,n/a,ami-6dc38202,n/a
-sa-east-1,ami-f1344b9d,ami-21354a4d,ami-b4344bd8,ami-05364969,ami-6a354a06,n/a
-cn-north-1,ami-fba67596,ami-b6a774db,ami-04a57669,ami-24a67549,ami-52a4773f,n/a
-us-gov-1,ami-6e9c1e0f,ami-a89e1cc9,ami-139c1e72,ami-9c991bfd,ami-fe991b9f,n/a
+us-east-1,ami-97785bed,ami-f6795a8c,ami-c87053b2,ami-a4795ade,ami-8d7655f7,AWS Marketplace
+us-east-2,ami-f63b1193,ami-ca3b11af,n/a,n/a,ami-fc3b1199,n/a
+us-west-2,ami-f2d3638a,ami-74d8680c,ami-31d86849,ami-08d66670,ami-35d6664d,AWS Marketplace
+us-west-1,ami-824c4ee2,ami-aa4f4dca,ami-d8494bb8,ami-bc4e4cdc,ami-394e4c59,AWS Marketplace
+ca-central-1,ami-a954d1cd,ami-2f4ecb4b,n/a,n/a,ami-2b4acf4f,n/a
+eu-west-1,ami-d834aba1,ami-072eb17e,ami-e539a69c,ami-d535aaac,ami-a136a9d8,AWS Marketplace
+eu-west-2,ami-403e2524,ami-b3312ad7,n/a,n/a,ami-87312ae3,n/a
+eu-west-3,ami-8ee056f3,ami-31e0564c,n/a,n/a,ami-0fe35572,n/a
+eu-central-1,ami-5652ce39,ami-ac51cdc3,ami-ba55c9d5,ami-5d50cc32,ami-5756ca38,AWS Marketplace
+ap-southeast-1,ami-68097514,ami-1e0f7362,ami-360e724a,ami-3f0f7343,ami-270f735b,AWS Marketplace
+ap-northeast-2,ami-863090e8,ami-78319116,n/a,n/a,ami-c52f8fab,n/a
+ap-northeast-1,ami-ceafcba8,ami-7aafcb1c,ami-a5593dc3,ami-98a1c5fe,ami-2c593d4a,AWS Marketplace
+ap-southeast-2,ami-942dd1f6,ami-882dd1ea,ami-922ed2f0,ami-882ed2ea,ami-3d28d45f,AWS Marketplace
+ap-south-1,ami-531a4c3c,ami-491a4c26,n/a,n/a,ami-c2e9bead,n/a
+sa-east-1,ami-84175ae8,ami-0715586b,ami-7c155810,ami-d1175abd,ami-be1f52d2,n/a
+cn-north-1,ami-cb19c4a6,ami-1b18c576,ami-1818c575,ami-c819c4a5,ami-e718c58a,n/a
+cn-northwest-1,ami-3e60745c,n/a,n/a,n/a,n/a,n/a
+us-gov-1,ami-56f87137,ami-b8f970d9,ami-3ffa735e,ami-ddfa73bc,ami-dcfa73bd,n/a

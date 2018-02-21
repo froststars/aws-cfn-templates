@@ -10,7 +10,7 @@ from troposphere import ImportValue, Export
 from troposphere import Condition, And, Equals, If, Not, Or
 from troposphere import Template, Parameter, Ref, Tags, Output
 from troposphere import AWS_ACCOUNT_ID, AWS_REGION, AWS_STACK_ID, \
-    AWS_STACK_NAME, AWS_NO_VALUE
+    AWS_STACK_NAME, AWS_NO_VALUE, AWS_PARTITION, AWS_URL_SUFFIX
 from troposphere import Delete, Retain, Snapshot
 
 from troposphere.policies import CreationPolicy, ResourceSignal, UpdatePolicy, \
@@ -41,9 +41,7 @@ import cfnutil
 t = Template()
 t.add_version('2010-09-09')
 t.add_description(
-    'An Amazon EC2 instance running Amazon Linux 2017.09, supported options '
-    'include optional security groups and instance roles, ssh access and '
-    'instance volume.  This templates also works in China region. '
+    'EC2 instance running Amazon Linux'
 )
 
 #
@@ -84,11 +82,11 @@ parameter_groups = [
             ]
     },
     {
-        'Label': {'default': 'Security & Log Configuration'},
+        'Label': {'default': 'Other Configuration'},
         'Parameters':
             [
                 'SshLocation',
-                'LogGroupName'
+'EnableSsm',
             ],
     },
 ]
@@ -177,15 +175,15 @@ param_instance_profile = t.add_parameter(Parameter(
 param_instance_sg = t.add_parameter(Parameter(
     'InstanceSecurityGroupId',
     Description='Instance security group id, a new security group will be '
-                'created this is left empty.',
+                'created if this is left empty.',
     Type='String',
     Default='',
 ))
 
 param_ebs_optimized = t.add_parameter(Parameter(
     'EbsOptimized',
-    Description='Whether instance is EBS optimized, default means use default '
-                'value of selected instance type',
+    Description='Whether instance is EBS optimized, use default value of '
+                'selected instance type when set to "default".',
     Type='String',
     Default='default',
     AllowedValues=['default', 'true', 'false'],
@@ -193,7 +191,8 @@ param_ebs_optimized = t.add_parameter(Parameter(
 
 param_volume1_size = t.add_parameter(Parameter(
     'Volume1Size',
-    Description='Size of the EBS volume in GB, "0" disables volume creation',
+    Description='Size of the EBS volume in GB, set to "0" disables volume '
+                'creation ',
     Type='Number',
     Default='0',
     MinValue='0',
@@ -223,7 +222,8 @@ param_volume1_iops = t.add_parameter(Parameter(
 
 param_volume1_device = t.add_parameter(Parameter(
     'Volume1Device',
-    Description='Volume device name',
+    Description='Volume device name, note for m5/c5 instances, this will be '
+                'renamed to /dev/nvmeXn1',
     Type='String',
     Default='/dev/xvdf',
     AllowedValues=list('/dev/xvd%s' % ch for ch in 'fghijklmnop'),
@@ -251,24 +251,19 @@ param_ssh_location = t.add_parameter(Parameter(
     ConstraintDescription='must be a valid CIDR range of the form x.x.x.x/x.',
 ))
 
-param_loggroup_name = t.add_parameter(Parameter(
-    'LogGroupName',
-    Description='CloudWatch Logs LogGroup name for the aws log agent to write '
-                'to, the LogGroup is assumed to be in the same region as the '
-                'stack, and will be created if it does not exist.',
+param_enable_ssm = t.add_parameter(Parameter(
+    'EnableSsm',
+    Description='Enable Simple System Manager (installed by default)'
+                'for Amazon Linux 2019.10 and later',
     Type='String',
-    MinLength='1',
-    MaxLength='512',
-    AllowedPattern=r'[a-zA-Z0-9_\-/]*',
-    ConstraintDescription='log group must contain only following characters: '
-                          'a-zA-Z0-9_-/.',
+    Default='true',
+    AllowedValues=['true', 'false'],
 ))
 
 
 #
 # Mapping
 #
-
 
 def load_aws_linux_ami(filename):
     """ See: https://aws.amazon.com/amazon-linux-ami/ """
@@ -338,9 +333,10 @@ t.add_condition(
 )
 
 t.add_condition(
-    'ChinaRegionCondition',
-    Equals(Ref(AWS_REGION), 'cn-north-1')
+    'SSMEnabledCondition',
+    Equals(Ref(param_enable_ssm), 'true')
 )
+
 
 #
 # Resources
@@ -361,102 +357,6 @@ instance_ssh_sg = t.add_resource(ec2.SecurityGroup(
     ],
 ))
 
-ssm_policy = {
-    'Version': '2012-10-17',
-    'Statement': [
-        {
-            'Effect': 'Allow',
-            'Action': [
-                'ssm:DescribeAssociation',
-                'ssm:GetDocument',
-                'ssm:ListAssociations',
-                'ssm:UpdateAssociationStatus',
-                'ssm:UpdateInstanceInformation'
-            ],
-            'Resource': '*'
-        },
-        {
-            'Effect': 'Allow',
-            'Action': [
-                'ec2messages:AcknowledgeMessage',
-                'ec2messages:DeleteMessage',
-                'ec2messages:FailMessage',
-                'ec2messages:GetEndpoint',
-                'ec2messages:GetMessages',
-                'ec2messages:SendReply'
-            ],
-            'Resource': '*'
-        },
-        {
-            'Effect': 'Allow',
-            'Action': [
-                'cloudwatch:PutMetricData'
-            ],
-            'Resource': '*'
-        },
-        {
-            'Effect': 'Allow',
-            'Action': [
-                'ec2:DescribeInstanceStatus'
-            ],
-            'Resource': '*'
-        },
-        {
-            'Effect': 'Allow',
-            'Action': [
-                'ds:CreateComputer',
-                'ds:DescribeDirectories'
-            ],
-            'Resource': '*'
-        },
-        # {
-        #     'Effect': 'Allow',
-        #     'Action': [
-        #         'logs:CreateLogGroup',
-        #         'logs:CreateLogStream',
-        #         'logs:DescribeLogGroups',
-        #         'logs:DescribeLogStreams',
-        #         'logs:PutLogEvents'
-        #     ],
-        #     'Resource': '*'
-        # },
-        {
-            'Effect': 'Allow',
-            'Action': [
-                's3:PutObject',
-                's3:GetObject',
-                's3:AbortMultipartUpload',
-                's3:ListMultipartUploadParts',
-                's3:ListBucketMultipartUploads'
-            ],
-            'Resource':
-                Sub(
-                    'arn:${PARTITON}:s3:::aws-ssm-log-${AWS::Region}-${AWS::AccountId}/*',
-                    PARTITON=If('ChinaRegionCondition', 'aws-cn', 'aws')
-                ),
-        }
-    ]
-}
-
-awslogs_policy = Policy(
-    Version='2012-10-17',
-    Statement=[Statement(
-        Effect=Allow,
-        Action=[
-            awacs.logs.CreateLogGroup,
-            awacs.logs.CreateLogStream,
-            awacs.logs.PutLogEvents,
-            awacs.logs.DescribeLogStreams,
-        ],
-        Resource=[
-            Sub(
-                'arn:${PARTITION}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*',
-                PARTITION=If('ChinaRegionCondition', 'aws-cn', 'aws')
-            ),
-        ]
-    )],
-)
-
 instance_role = t.add_resource(iam.Role(
     'InstanceRole',
     Condition='CreateInstanceProfileCondition',
@@ -464,31 +364,18 @@ instance_role = t.add_resource(iam.Role(
         Statement=[Statement(
             Effect=Allow,
             Action=[awacs.sts.AssumeRole],
-            Principal=Principal(
-                'Service',
-                [
-                    If('ChinaRegionCondition',
-                       'ec2.amazonaws.com.cn',
-                       'ec2.amazonaws.com')
-                ]
-            ))
-        ]),
+            Principal=Principal('Service', [
+                Sub('ec2.${AWS::URLSuffix}'),
+            ])
+        )]
+    ),
     ManagedPolicyArns=[
-        # This is way too open
-        # Sub(
-        #     'arn:${PARTITION}:iam::aws:policy/service-role/AmazonEC2RoleforSSM',
-        #     PARTITION=If('ChinaRegionCondition', 'aws-cn', 'aws')
-        # )
+        # XXX: This is waaaaay too open
+        If('SSMEnabledCondition',
+            Sub('arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2RoleforSSM'),
+           Ref(AWS_NO_VALUE))
     ],
     Policies=[
-        iam.Policy(
-            PolicyName='AWSLogs',
-            PolicyDocument=awslogs_policy,
-        ),
-        iam.Policy(
-            PolicyName='Ec2SSM',
-            PolicyDocument=ssm_policy,
-        ),
     ]
 ))
 
@@ -500,7 +387,7 @@ instance_profile = t.add_resource(iam.InstanceProfile(
     ],
 ))
 
-instance_resource_name = 'AwsLinuxInstance'
+instance_resource_name = 'AWSLinuxInstance'
 
 instance_user_data = Base64(Sub('''#!/bin/bash -xe
 # Update CloudFormation tools
@@ -524,13 +411,11 @@ instance_metadata = cloudformation.Metadata(
         cloudformation.InitConfigSets(
             Bootstrap=[
                 'ConfigCFNTools',
-                'InstallAWSTools',
-                'InstallPackages',
+                # 'InstallPackages',
             ],
             Update=[
                 'ConfigCFNTools',
-                'InstallAWSTools',
-                'InstallPackages',
+                # 'InstallPackages',
             ],
         ),
         ConfigCFNTools=cloudformation.InitConfig(
@@ -578,78 +463,25 @@ instance_metadata = cloudformation.Metadata(
                 )
             },
         ),
-        InstallAWSTools=cloudformation.InitConfig(
-            packages={
-                'yum': {
-                    'aws-cli': [],
-                    'awslogs': [],
-                },
-            },
-            files={
-                '/etc/awslogs/awscli.conf': {
-                    'content': Sub(
-                        '[plugins]\n'
-                        'cwlogs = cwlogs\n'
-                        '[default]\n'
-                        'region = ${AWS::Region}\n'
-                    ),
-                    'mode': '000400',
-                    'owner': 'root',
-                    'group': 'root',
-                },
-                '/etc/awslogs/awslogs.conf': {
-                    'content': Sub(
-                        '[general]\n'
-                        'state_file = /var/lib/awslogs/agent-state\n'
-                        '[/var/log/messages]\n'
-                        'datetime_format = %b %d %H:%M:%S\n'
-                        'file = /var/log/messages\n'
-                        'buffer_duration = 5000\n'
-                        'initial_position = start_of_file\n'
-                        'log_group_name = ${LOG_GROUP_NAME}\n'
-                        'log_stream_name = ${AWS::StackName}/{instance_id}/messages\n',
-                        LOG_GROUP_NAME=Ref(param_loggroup_name)
-                    ),
-                    'mode': '000400',
-                    'owner': 'root',
-                    'group': 'root',
-                },
-            },
-            commands={
-            },
-            services={
-                'sysvinit': cloudformation.InitServices(
-                    {
-                        'awslogs': cloudformation.InitService(
-                            enabled=True,
-                            ensureRunning=True,
-                            files=[
-                                '/etc/awslogs/awslogs.conf',
-                                '/etc/awslogs/awscli.conf',
-                            ]
-                        ),
-
-                    },
-                )},
-        ),
-        InstallPackages=cloudformation.InitConfig(
-            # packages={
-            #     'yum': {
-            #         'nginx': [],
-            #     }
-            # },
-            # services={'sysvinit': cloudformation.InitServices(
-            #     {
-            #         'nginx': cloudformation.InitService(
-            #             enabled=True,
-            #             ensureRunning=True,
-            #             files=[
-            #                 '/etc/nginx/nginx.conf',
-            #             ]
-            #         ),
-            #     }
-            # )},
-        ),
+        # InstallPackages=cloudformation.InitConfig(
+        #     packages={
+        #         'yum': {
+        #             'python27-devel': [],
+        #         },
+        #
+        #     },
+        #     services={'sysvinit': cloudformation.InitServices(
+        #         {
+        #             'nginx': cloudformation.InitService(
+        #                 enabled=True,
+        #                 ensureRunning=True,
+        #                 files=[
+        #                     '/etc/nginx/nginx.conf',
+        #                 ]
+        #             ),
+        #         }
+        #     )},
+        # ),
     )
 )
 
@@ -758,5 +590,6 @@ t.add_output([
 #
 # Write template
 #
+
 cfnutil.write(t, __file__.replace('Template.py', '.template.yaml'),
               write_yaml=True)

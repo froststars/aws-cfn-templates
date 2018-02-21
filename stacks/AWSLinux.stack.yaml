@@ -1,6 +1,6 @@
 Stack:
   TemplateBody:   ../components/EC2/AWSLinux.template.yaml
-  Region:         us-east-1
+  Region:         us-west-2
   StackName:      Boba-AwsLinux
   Capabilities:   [CAPABILITY_IAM]
 
@@ -11,9 +11,8 @@ Stack:
     assignee:     Bob
 
   Parameters:
-    VpcId:        vpc-91c284e8
-    SubnetId:     subnet-caffedf6
-    KeyName:      test-key
-    InstanceType: t2.small
-    LogGroupName: TestLogGroup
+    VpcId:        vpc-8dbb6cf4
+    SubnetId:     subnet-431b0f25
+    KeyName:      kotaimen-aws-default
+    InstanceType: t2.medium
     Volume1Size:  10
