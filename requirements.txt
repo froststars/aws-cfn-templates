@@ -1,1 +1,2 @@
 awscfncli>=0.5
+troposphere>=2.2.0

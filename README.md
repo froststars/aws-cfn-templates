@@ -15,4 +15,8 @@ See also:
 
 ## Note
 
-To build troposphere templates you need to install `cfnutil` utilties first.
+To build troposphere templates you need to install `cfnutil` first.
+Go into `cfnutil` directory and type:
+    
+    pip3 install -e .
+
