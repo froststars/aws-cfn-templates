@@ -154,6 +154,7 @@ param_instance_profile = t.add_parameter(Parameter(
 ))
 
 # See http://docs.aws.amazon.com/elasticbeanstalk/latest/dg/concepts.platforms.html
+# aws elasticbeanstalk list-available-solution-stacks
 param_solution_stack = t.add_parameter(Parameter(
     'SolutionStackName',
     Description='Elastic beans tack ',

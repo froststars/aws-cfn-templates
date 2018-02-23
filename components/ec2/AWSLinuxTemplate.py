@@ -86,7 +86,7 @@ parameter_groups = [
         'Parameters':
             [
                 'SshLocation',
-'EnableSsm',
+                'EnableSsm',
             ],
     },
 ]
@@ -337,7 +337,6 @@ t.add_condition(
     Equals(Ref(param_enable_ssm), 'true')
 )
 
-
 #
 # Resources
 #
@@ -372,7 +371,7 @@ instance_role = t.add_resource(iam.Role(
     ManagedPolicyArns=[
         # XXX: This is waaaaay too open
         If('SSMEnabledCondition',
-            Sub('arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2RoleforSSM'),
+           Sub('arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2RoleforSSM'),
            Ref(AWS_NO_VALUE))
     ],
     Policies=[
