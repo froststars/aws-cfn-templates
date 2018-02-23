@@ -329,6 +329,7 @@ t.add_condition(
 
 instance_ssh_sg = t.add_resource(ec2.SecurityGroup(
     'SshSecurityGroup',
+    Condition='CreateSecurityGroupCondition',
     VpcId=Ref(param_vpcid),
     GroupDescription='Enable SSH access via port 22',
     SecurityGroupIngress=[
@@ -344,6 +345,7 @@ instance_ssh_sg = t.add_resource(ec2.SecurityGroup(
 
 instance_role = t.add_resource(iam.Role(
     'InstanceRole',
+    Condition='CreateInstanceProfileCondition',
     AssumeRolePolicyDocument=Policy(
         Statement=[Statement(
             Effect=Allow,
@@ -361,6 +363,7 @@ instance_role = t.add_resource(iam.Role(
 
 instance_profile = t.add_resource(iam.InstanceProfile(
     'InstanceProfile',
+    Condition='CreateInstanceProfileCondition',
     Roles=[
         Ref(instance_role)
     ],

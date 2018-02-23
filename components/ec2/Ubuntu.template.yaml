@@ -396,11 +396,13 @@ Resources:
       Domain: vpc
     Type: AWS::EC2::EIP
   InstanceProfile:
+    Condition: CreateInstanceProfileCondition
     Properties:
       Roles:
         - !Ref 'InstanceRole'
     Type: AWS::IAM::InstanceProfile
   InstanceRole:
+    Condition: CreateInstanceProfileCondition
     Properties:
       AssumeRolePolicyDocument:
         Statement:
@@ -414,6 +416,7 @@ Resources:
       Policies: []
     Type: AWS::IAM::Role
   SshSecurityGroup:
+    Condition: CreateSecurityGroupCondition
     Properties:
       GroupDescription: Enable SSH access via port 22
       SecurityGroupIngress:
