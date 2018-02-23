@@ -84,7 +84,6 @@ parameter_groups = [
         'Parameters':
             [
                 'SshLocation',
-                'LogGroupName'
             ],
     },
 ]
@@ -148,7 +147,7 @@ param_ubuntu_version = t.add_parameter(Parameter(
     Description='Ubuntu version (only LTS are allowed)',
     Type='String',
     Default='xenial',
-    AllowedValues=['artful', 'xenial', 'trusty'],
+    AllowedValues=['xenial', 'trusty'],
 ))
 
 param_instance_type = t.add_parameter(Parameter(
@@ -255,19 +254,6 @@ param_ssh_location = t.add_parameter(Parameter(
     ConstraintDescription='must be a valid CIDR range of the form x.x.x.x/x.',
 ))
 
-param_loggroup_name = t.add_parameter(Parameter(
-    'LogGroupName',
-    Description='CloudWatch Logs LogGroup name for the aws log agent to write '
-                'to, the LogGroup is assumed to be in the same region as the '
-                'stack, and will be created if it does not exist.',
-    Type='String',
-    MinLength='1',
-    MaxLength='512',
-    AllowedPattern=r'[a-zA-Z0-9_\-/]*',
-    ConstraintDescription='log group must contain only following characters: '
-                          'a-zA-Z0-9_-/.',
-))
-
 
 #
 # Mapping
@@ -336,11 +322,6 @@ t.add_condition(
     Not(Equals(Ref(param_volume_key), ''))
 )
 
-t.add_condition(
-    'ChinaRegionCondition',
-    Equals(Ref(AWS_REGION), 'cn-north-1')
-)
-
 #
 # Resources
 #
@@ -360,101 +341,6 @@ instance_ssh_sg = t.add_resource(ec2.SecurityGroup(
     ],
 ))
 
-ssm_policy = {
-    'Version': '2012-10-17',
-    'Statement': [
-        {
-            'Effect': 'Allow',
-            'Action': [
-                'ssm:DescribeAssociation',
-                'ssm:GetDocument',
-                'ssm:ListAssociations',
-                'ssm:UpdateAssociationStatus',
-                'ssm:UpdateInstanceInformation'
-            ],
-            'Resource': '*'
-        },
-        {
-            'Effect': 'Allow',
-            'Action': [
-                'ec2messages:AcknowledgeMessage',
-                'ec2messages:DeleteMessage',
-                'ec2messages:FailMessage',
-                'ec2messages:GetEndpoint',
-                'ec2messages:GetMessages',
-                'ec2messages:SendReply'
-            ],
-            'Resource': '*'
-        },
-        {
-            'Effect': 'Allow',
-            'Action': [
-                'cloudwatch:PutMetricData'
-            ],
-            'Resource': '*'
-        },
-        {
-            'Effect': 'Allow',
-            'Action': [
-                'ec2:DescribeInstanceStatus'
-            ],
-            'Resource': '*'
-        },
-        {
-            'Effect': 'Allow',
-            'Action': [
-                'ds:CreateComputer',
-                'ds:DescribeDirectories'
-            ],
-            'Resource': '*'
-        },
-        # {
-        #     'Effect': 'Allow',
-        #     'Action': [
-        #         'logs:CreateLogGroup',
-        #         'logs:CreateLogStream',
-        #         'logs:DescribeLogGroups',
-        #         'logs:DescribeLogStreams',
-        #         'logs:PutLogEvents'
-        #     ],
-        #     'Resource': '*'
-        # },
-        {
-            'Effect': 'Allow',
-            'Action': [
-                's3:PutObject',
-                's3:GetObject',
-                's3:AbortMultipartUpload',
-                's3:ListMultipartUploadParts',
-                's3:ListBucketMultipartUploads'
-            ],
-            'Resource':
-                Sub(
-                    'arn:${PARTITON}:s3:::aws-ssm-log-${AWS::Region}-${AWS::AccountId}/*',
-                    PARTITION=If('ChinaRegionCondition', 'aws-cn', 'aws')
-                ),
-        }
-    ]
-}
-
-awslogs_policy = Policy(
-    Version='2012-10-17',
-    Statement=[Statement(
-        Effect=Allow,
-        Action=[
-            awacs.logs.CreateLogGroup,
-            awacs.logs.CreateLogStream,
-            awacs.logs.PutLogEvents,
-            awacs.logs.DescribeLogStreams,
-        ],
-        Resource=[
-            Sub(
-                'arn:${PARTITION}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*',
-                PARTITION=If('ChinaRegionCondition', 'aws-cn', 'aws')
-            )
-        ]
-    )],
-)
 
 instance_role = t.add_resource(iam.Role(
     'InstanceRole',
@@ -462,26 +348,14 @@ instance_role = t.add_resource(iam.Role(
         Statement=[Statement(
             Effect=Allow,
             Action=[awacs.sts.AssumeRole],
-            Principal=Principal(
-                'Service',
-                [
-                    If('ChinaRegionCondition',
-                       'ec2.amazonaws.com.cn',
-                       'ec2.amazonaws.com')
-                ]
-            ))
-        ]),
+            Principal=Principal('Service', [
+                Sub('ec2.${AWS::URLSuffix}'),
+            ])
+        )]
+    ),
     ManagedPolicyArns=[
     ],
     Policies=[
-        # iam.Policy(
-        #     PolicyName='Ec2SSM',
-        #     PolicyDocument=ssm_policy,
-        # ),
-        iam.Policy(
-            PolicyName='AWSLogs',
-            PolicyDocument=awslogs_policy,
-        ),
     ]
 ))
 
@@ -526,6 +400,7 @@ instance_metadata = cloudformation.Metadata(
             ],
             Update=[
                 'ConfigCFNTools',
+                'InstallAWSTools',
                 'InstallPackages',
             ],
         ),
@@ -594,43 +469,8 @@ instance_metadata = cloudformation.Metadata(
                     'owner': 'ubuntu',
                     'group': 'ubuntu',
                 },
-                '/tmp/awslogs.conf': {
-                    'content': Sub(
-                        '[general]\n'
-                        'state_file= /var/awslogs/agent-state\n'
-                        '[/var/log/syslog]\n'
-                        'datetime_format = %b %d %H:%M:%S\n'
-                        'file = /var/log/syslog\n'
-                        'buffer_duration = 5000\n'
-                        'initial_position = start_of_file\n'
-                        'log_group_name = ${LOG_GROUP_NAME}\n'
-                        'log_stream_name = ${AWS::StackName}/{instance_id}/syslog\n',
-                        LOG_GROUP_NAME=Ref(param_loggroup_name)
-                    ),
-                    'mode': '000400',
-                    'owner': 'root',
-                    'group': 'root',
-                },
             },
             commands={
-                '01_download_awslogs': {
-                    'command': 'wget https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py',
-                    'cwd': '/tmp',
-                },
-                '02_install_awslogs': {
-                    'command': Sub(
-                        'python awslogs-agent-setup.py -n -r ${AWS::Region} -c /tmp/awslogs.conf'),
-                    'cwd': '/tmp',
-                },
-                # awslogs don't support systemctl yet
-                '03_enable_awslogs': {
-                    'command': 'systemctl enable awslogs.service',
-                    'test': 'test $(lsb_release -cs) = "xenial"'
-                },
-                '04_start_awslogs': {
-                    'command': 'systemctl start awslogs.service',
-                    'test': 'test $(lsb_release -cs) = "xenial"'
-                },
             },
         ),
         InstallPackages=cloudformation.InitConfig(

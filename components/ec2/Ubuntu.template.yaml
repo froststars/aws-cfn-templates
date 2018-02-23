@@ -1,69 +1,86 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Conditions:
-  AllocateElasticIpCondition: !Equals [!Ref 'AllocateElasticIp', 'true']
-  ChinaRegionCondition: !Equals [!Ref 'AWS::Region', cn-north-1]
-  CreateInstanceProfileCondition: !Equals [!Ref 'InstanceProfileArn', '']
-  CreateSecurityGroupCondition: !Equals [!Ref 'InstanceSecurityGroupId', '']
-  DefaultEbsOptimizationCondition: !Equals [!Ref 'EbsOptimized', default]
-  PublicIpCondition: !Or [!Equals [!Ref 'AssociatePublicIp', 'true'], !Equals [!Ref 'AllocateElasticIp',
-      'true']]
-  Volume1Condition: !Not [!Equals [!Ref 'Volume1Size', '0']]
-  Volume1IopsOptimizedCondition: !Equals [!Ref 'Volume1Type', io1]
-  VolumeEncryptedCondition: !Not [!Equals [!Ref 'VolumeEncryptionKey', '']]
+  AllocateElasticIpCondition: !Equals
+    - !Ref 'AllocateElasticIp'
+    - 'true'
+  CreateInstanceProfileCondition: !Equals
+    - !Ref 'InstanceProfileArn'
+    - ''
+  CreateSecurityGroupCondition: !Equals
+    - !Ref 'InstanceSecurityGroupId'
+    - ''
+  DefaultEbsOptimizationCondition: !Equals
+    - !Ref 'EbsOptimized'
+    - default
+  PublicIpCondition: !Or
+    - !Equals
+      - !Ref 'AssociatePublicIp'
+      - 'true'
+    - !Equals
+      - !Ref 'AllocateElasticIp'
+      - 'true'
+  Volume1Condition: !Not
+    - !Equals
+      - !Ref 'Volume1Size'
+      - '0'
+  Volume1IopsOptimizedCondition: !Equals
+    - !Ref 'Volume1Type'
+    - io1
+  VolumeEncryptedCondition: !Not
+    - !Equals
+      - !Ref 'VolumeEncryptionKey'
+      - ''
 Description: Amazon EC2 instance running the Ubuntu Linux.
 Mappings:
   UbuntuAMIs:
     ap-northeast-1:
-      artful: ami-6f3be109
-      trusty: ami-3b60bc5d
-      xenial: ami-6959870f
+      trusty: ami-15e58f73
+      xenial: ami-adceb9cb
     ap-northeast-2:
-      artful: ami-a16dc8cf
-      xenial: ami-08d77266
+      xenial: ami-35a3015b
     ap-south-1:
-      artful: ami-fe0c4e91
-      xenial: ami-50591a3f
+      xenial: ami-88d98ae7
     ap-southeast-1:
-      artful: ami-9aa4e0f9
-      trusty: ami-6194ec02
-      xenial: ami-d9dca7ba
+      trusty: ami-e355129f
+      xenial: ami-a55c1dd9
     ap-southeast-2:
-      artful: ami-1dad417f
-      trusty: ami-6c27c50e
-      xenial: ami-02ad4060
+      trusty: ami-c625dda4
+      xenial: ami-e1c43f83
     ca-central-1:
-      artful: ami-cfba02ab
-      xenial: ami-13e45c77
+      xenial: ami-c7a622a3
+    cn-north-1:
+      trusty: ami-0b508d66
+      xenial: ami-cc4499a1
+    cn-northwest-1:
+      trusty: ami-41130723
+      xenial: ami-fd0e1a9f
     eu-central-1:
-      artful: ami-b058e1df
-      trusty: ami-c9d966a6
-      xenial: ami-e613ac89
+      trusty: ami-fa2fb595
+      xenial: ami-714f2b1e
     eu-west-1:
-      artful: ami-cc67b9b5
-      trusty: ami-d429faad
-      xenial: ami-eed00d97
+      trusty: ami-78d2be01
+      xenial: ami-c1167eb8
     eu-west-2:
-      artful: ami-163c2172
-      xenial: ami-ba5f42de
+      xenial: ami-e0bc5987
+    eu-west-3:
+      xenial: ami-6bad1b16
     sa-east-1:
-      artful: ami-f86a1394
-      trusty: ami-356e1059
-      xenial: ami-1ca7d970
+      trusty: ami-2a82cd46
+      xenial: ami-9a2d63f6
     us-east-1:
-      artful: ami-36a8754c
-      trusty: ami-6e29e714
-      xenial: ami-bcdc16c6
+      trusty: ami-a22323d8
+      xenial: ami-0b383171
     us-east-2:
-      artful: ami-03e9c566
-      xenial: ami-49426e2c
+      xenial: ami-4f80b52a
+    us-gov-west-1:
+      trusty: ami-e58f0784
+      xenial: ami-77199016
     us-west-1:
-      artful: ami-5a4a773a
-      trusty: ami-e1784a81
-      xenial: ami-1b17257b
+      trusty: ami-77050a17
+      xenial: ami-9cb2bdfc
     us-west-2:
-      artful: ami-48ce0c30
-      trusty: ami-6aa26412
-      xenial: ami-19e92861
+      trusty: ami-8f78c2f7
+      xenial: ami-c62eaabe
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -96,7 +113,6 @@ Metadata:
           default: Security & Log Configuration
         Parameters:
           - SshLocation
-          - LogGroupName
     ParameterLabels:
       AllocateElasticIp:
         default: Allocate Elastic Ip
@@ -114,8 +130,6 @@ Metadata:
         default: Instance Type
       KeyName:
         default: Key Name
-      LogGroupName:
-        default: Log Group Name
       SshLocation:
         default: Ssh Location
       SubnetId:
@@ -296,15 +310,6 @@ Parameters:
     ConstraintDescription: must be the name of an existing EC2 KeyPair.
     Description: Name of an existing EC2 KeyPair to enable SSH access
     Type: AWS::EC2::KeyPair::KeyName
-  LogGroupName:
-    AllowedPattern: '[a-zA-Z0-9_\-/]*'
-    ConstraintDescription: 'log group must contain only following characters: a-zA-Z0-9_-/.'
-    Description: CloudWatch Logs LogGroup name for the aws log agent to write to,
-      the LogGroup is assumed to be in the same region as the stack, and will be created
-      if it does not exist.
-    MaxLength: '512'
-    MinLength: '1'
-    Type: String
   SshLocation:
     AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
     ConstraintDescription: must be a valid CIDR range of the form x.x.x.x/x.
@@ -320,7 +325,6 @@ Parameters:
     Type: AWS::EC2::Subnet::Id
   UbuntuVersion:
     AllowedValues:
-      - artful
       - xenial
       - trusty
     Default: xenial
@@ -405,22 +409,9 @@ Resources:
             Effect: Allow
             Principal:
               Service:
-                - !If [ChinaRegionCondition, ec2.amazonaws.com.cn, ec2.amazonaws.com]
+                - !Sub 'ec2.${AWS::URLSuffix}'
       ManagedPolicyArns: []
-      Policies:
-        - PolicyDocument:
-            Statement:
-              - Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                  - logs:DescribeLogStreams
-                Effect: Allow
-                Resource:
-                  - !Sub ['arn:${PARTITION}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*',
-                    {PARTITION: !If [ChinaRegionCondition, aws-cn, aws]}]
-            Version: '2012-10-17'
-          PolicyName: AWSLogs
+      Policies: []
     Type: AWS::IAM::Role
   SshSecurityGroup:
     Properties:
@@ -441,33 +432,16 @@ Resources:
         ConfigCFNTools:
           files:
             /etc/cfn/cfn-hup.conf:
-              content: !Sub '[main]
-
-                stack=${AWS::StackId}
-
-                region=${AWS::Region}
-
-                interval=5
-
-                verbose=false
-
-                '
+              content: !Sub "[main]\nstack=${AWS::StackId}\nregion=${AWS::Region}\n\
+                interval=5\nverbose=false\n"
               group: root
               mode: '000400'
               owner: root
             /etc/cfn/hooks.d/cfn-auto-reloader.conf:
-              content: !Sub '[cfn-auto-reloader-hook]
-
-                triggers=post.update
-
-                path=Resources.UbuntuInstance.Metadata.AWS::CloudFormation::Init
-
-                action=/opt/aws/bin/cfn-init -v    --stack ${AWS::StackName}    --resource
-                UbuntuInstance    --configsets Update    --region ${AWS::Region}
-
-                runas=root
-
-                '
+              content: !Sub "[cfn-auto-reloader-hook]\ntriggers=post.update\npath=Resources.UbuntuInstance.Metadata.AWS::CloudFormation::Init\n\
+                action=/opt/aws/bin/cfn-init -v    --stack ${AWS::StackName}    --resource\
+                \ UbuntuInstance    --configsets Update    --region ${AWS::Region}\n\
+                runas=root\n"
           services:
             sysvinit:
               cfn-hup:
@@ -477,34 +451,13 @@ Resources:
                   - /etc/cfn/cfn-hup.conf
                   - /etc/cfn/hooks.d/cfn-auto-reloader.conf
         InstallAWSTools:
-          commands:
-            01_download_awslogs:
-              command: wget https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py
-              cwd: /tmp
-            02_install_awslogs:
-              command: !Sub 'python awslogs-agent-setup.py -n -r ${AWS::Region} -c
-                /tmp/awslogs.conf'
-              cwd: /tmp
-            03_enable_awslogs:
-              command: systemctl enable awslogs.service
-              test: test $(lsb_release -cs) = "xenial"
-            04_start_awslogs:
-              command: systemctl start awslogs.service
-              test: test $(lsb_release -cs) = "xenial"
+          commands: {}
           files:
             /home/ubuntu/.aws/config:
               content: !Sub "[default]\ns3 =\n    signature_version = s3v4\nregion\
                 \ = ${AWS::Region}\n"
               group: ubuntu
               owner: ubuntu
-            /tmp/awslogs.conf:
-              content: !Sub ["[general]\nstate_file= /var/awslogs/agent-state\n[/var/log/syslog]\n\
-                  datetime_format = %b %d %H:%M:%S\nfile = /var/log/syslog\nbuffer_duration\
-                  \ = 5000\ninitial_position = start_of_file\nlog_group_name = ${LOG_GROUP_NAME}\n\
-                  log_stream_name = ${AWS::StackName}/{instance_id}/syslog\n", {LOG_GROUP_NAME: !Ref 'LogGroupName'}]
-              group: root
-              mode: '000400'
-              owner: root
           packages:
             apt:
               python-pip: []
@@ -518,12 +471,21 @@ Resources:
             - InstallPackages
           Update:
             - ConfigCFNTools
+            - InstallAWSTools
             - InstallPackages
     Properties:
-      EbsOptimized: !If [DefaultEbsOptimizationCondition, !Ref 'AWS::NoValue', !Ref 'EbsOptimized']
-      IamInstanceProfile: !If [CreateInstanceProfileCondition, !Ref 'InstanceProfile',
-        !Ref 'InstanceProfileArn']
-      ImageId: !FindInMap [UbuntuAMIs, !Ref 'AWS::Region', !Ref 'UbuntuVersion']
+      EbsOptimized: !If
+        - DefaultEbsOptimizationCondition
+        - !Ref 'AWS::NoValue'
+        - !Ref 'EbsOptimized'
+      IamInstanceProfile: !If
+        - CreateInstanceProfileCondition
+        - !Ref 'InstanceProfile'
+        - !Ref 'InstanceProfileArn'
+      ImageId: !FindInMap
+        - UbuntuAMIs
+        - !Ref 'AWS::Region'
+        - !Ref 'UbuntuVersion'
       InstanceType: !Ref 'InstanceType'
       KeyName: !Ref 'KeyName'
       Monitoring: !Ref 'DetailedMonitoring'
@@ -532,7 +494,10 @@ Resources:
           DeleteOnTermination: 'true'
           DeviceIndex: '0'
           GroupSet:
-            - !If [CreateSecurityGroupCondition, !Ref 'SshSecurityGroup', !Ref 'InstanceSecurityGroupId']
+            - !If
+              - CreateSecurityGroupCondition
+              - !Ref 'SshSecurityGroup'
+              - !Ref 'InstanceSecurityGroupId'
           SubnetId: !Ref 'SubnetId'
       Tags:
         - Key: Name
@@ -554,9 +519,18 @@ Resources:
     Condition: Volume1Condition
     Properties:
       AvailabilityZone: !GetAtt 'UbuntuInstance.AvailabilityZone'
-      Encrypted: !If [VolumeEncryptedCondition, 'true', 'false']
-      Iops: !If [Volume1IopsOptimizedCondition, !Ref 'Volume1Iops', !Ref 'AWS::NoValue']
-      KmsKeyId: !If [VolumeEncryptedCondition, !Ref 'VolumeEncryptionKey', !Ref 'AWS::NoValue']
+      Encrypted: !If
+        - VolumeEncryptedCondition
+        - 'true'
+        - 'false'
+      Iops: !If
+        - Volume1IopsOptimizedCondition
+        - !Ref 'Volume1Iops'
+        - !Ref 'AWS::NoValue'
+      KmsKeyId: !If
+        - VolumeEncryptedCondition
+        - !Ref 'VolumeEncryptionKey'
+        - !Ref 'AWS::NoValue'
       Size: !Ref 'Volume1Size'
       Tags:
         - Key: Name
