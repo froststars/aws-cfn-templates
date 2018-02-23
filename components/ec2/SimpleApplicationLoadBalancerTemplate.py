@@ -59,6 +59,7 @@ parameter_groups = [
     {
         'Label': {'default': 'LoadBalancer Configuration'},
         'Parameters': [
+            'LbScheme',
             'InstanceId',
             'CertificateArn',
             'LogBucket',
@@ -96,15 +97,25 @@ param_subnetids = t.add_parameter(Parameter(
 
 param_securitygroup = t.add_parameter(Parameter(
     'SecurityGroupId',
-    Description='Load balancer security group id',
+    Description='Security group to assign to the load balancer.',
     Type='AWS::EC2::SecurityGroup::Id',
+))
+
+param_lb_scheme = t.add_parameter(Parameter(
+    'LbScheme',
+    Description='Specifies whether the load balancer is internal or '
+                'Internet-facing',
+    Type='String',
+    Default='internet-facing',
+    AllowedValues=['internet-facing', 'internal']
 ))
 
 param_certificate = t.add_parameter(Parameter(
     'CertificateArn',
-    Description='ARN of IAM or ACM certificate to bind to LB.',
+    Description='ARN of IAM or ACM certificate to bind to LB, set to empty'
+                'string disables https.',
     Type='String',
-    Default='arn',
+    Default='',
 ))
 
 param_instance_id = t.add_parameter(Parameter(
@@ -115,7 +126,7 @@ param_instance_id = t.add_parameter(Parameter(
 
 param_bucket_name = t.add_parameter(Parameter(
     'BucketName',
-    Description='Name of the ELB log bucket, the bucket should have proper '
+    Description='Name of the log bucket, the bucket should have proper '
                 'bucket policy to enable log delivery, set to empty string '
                 'disables logging.',
     Default='',
@@ -125,7 +136,7 @@ param_bucket_name = t.add_parameter(Parameter(
 
 param_log_perfix = t.add_parameter(Parameter(
     'LogPrefix',
-    Description='Access log prefix',
+    Description='Access log prefix (optional)',
     Default='',
     Type='String',
     MinLength=0,
@@ -147,7 +158,7 @@ t.add_condition(
 
 load_balancer = t.add_resource(elbv2.LoadBalancer(
     'LoadBalancer',
-    Scheme='internet-facing',
+    Scheme=Ref(param_lb_scheme),
     SecurityGroups=[Ref(param_securitygroup)],
     Subnets=Ref(param_subnetids),
     LoadBalancerAttributes=[
@@ -163,14 +174,18 @@ load_balancer = t.add_resource(elbv2.LoadBalancer(
             Key='access_logs.s3.enabled',
             Value=If('EnableAccessLogsCondition', 'true', 'false')
         ),
-        elbv2.LoadBalancerAttributes(
-            Key='access_logs.s3.bucket',
-            Value=Ref(param_bucket_name)
-        ),
-        elbv2.LoadBalancerAttributes(
-            Key='access_logs.s3.prefix',
-            Value=Ref(param_log_perfix)
-        )
+        If('EnableAccessLogsCondition',
+           elbv2.LoadBalancerAttributes(
+               Key='access_logs.s3.bucket',
+               Value=Ref(param_bucket_name)
+           ),
+           Ref(AWS_NO_VALUE)),
+        If('EnableAccessLogsCondition',
+           elbv2.LoadBalancerAttributes(
+               Key='access_logs.s3.prefix',
+               Value=Ref(param_log_perfix)
+           ),
+           Ref(AWS_NO_VALUE)),
     ]
 ))
 
