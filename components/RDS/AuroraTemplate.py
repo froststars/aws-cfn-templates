@@ -61,7 +61,7 @@ parameter_groups = [
                 # 'DatabaseSnapshot',
                 'DatabaseClass',
                 # 'DatabaseEngineVersion',
-                # 'DatabaseMultiAz',
+                'DatabaseReadReplicas',
                 'DatabaseUser',
                 'DatabasePassword',
             ]
@@ -182,14 +182,14 @@ param_db_password = t.add_parameter(Parameter(
     ConstraintDescription='must contain only alphanumeric characters.'
 ))
 
-# param_db_multi_az = t.add_parameter(Parameter(
-#     'DatabaseMultiAz',
-#     NoEcho=True,
-#     Description='Whether use a multi-AZ Deployment',
-#     Type='String',
-#     Default='false',
-#     AllowedValues=['true', 'false'],
-# ))
+param_db_read_replicas = t.add_parameter(Parameter(
+    'DatabaseReadReplicas',
+    Description='Number of read replica instances, set to 0 disables read replicas.',
+    Type='Number',
+    Default=0,
+    MinValue=0,
+    MaxValue=16,
+))
 
 param_db_storage_size = t.add_parameter(Parameter(
     'StorageSize',
@@ -279,6 +279,12 @@ t.add_condition(
     'NewDatabaseCondition',
     Equals(Ref(param_db_snapshot), ''),
 )
+
+t.add_condition(
+    'OneReadReplicaCondition',
+    Equals(Ref(param_db_read_replicas), 1),
+)
+
 #
 # t.add_condition(
 #     'UseSnapshotCondition',
@@ -404,7 +410,6 @@ rds_instance2 = t.add_resource(rds.DBInstance(
             '${EnhancedMonitoringConditionRole}'),
         Ref(AWS_NO_VALUE)),
 ))
-
 
 #
 # Output

@@ -1,41 +1,57 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Conditions:
-  CreateSecurityGroupCondition: !Equals [!Ref 'SecurityGroup', '']
-  DefaultKmsCondition: !Equals [!Ref 'KmsKeyId', '']
-  EnhancedMonitoringCondition: !Not [!Equals [!Ref 'EnhancedMonitoringConditionRole',
-      '']]
-  IopsStorageCondition: !Equals [!Ref 'StorageType', io1]
-  NewDatabaseCondition: !Equals [!Ref 'DatabaseSnapshot', '']
-  StorageEncryptedConditon: !Equals [!Ref 'StorageEncrypted', 'true']
+  CreateSecurityGroupCondition: !Equals
+    - !Ref 'SecurityGroup'
+    - ''
+  DefaultKmsCondition: !Equals
+    - !Ref 'KmsKeyId'
+    - ''
+  EnhancedMonitoringCondition: !Not
+    - !Equals
+      - !Ref 'EnhancedMonitoringConditionRole'
+      - ''
+  IopsStorageCondition: !Equals
+    - !Ref 'StorageType'
+    - io1
+  NewDatabaseCondition: !Equals
+    - !Ref 'DatabaseSnapshot'
+    - ''
+  OneReadReplicaCondition: !Equals
+    - !Ref 'DatabaseReadReplicas'
+    - 1
+  StorageEncryptedConditon: !Equals
+    - !Ref 'StorageEncrypted'
+    - 'true'
 Description: Aurora for Postgres cluster.
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-    - Label:
-        default: Network Configuration
-      Parameters:
-      - VpcId
-      - SubnetIds
-      - SecurityGroup
-    - Label:
-        default: Database Basic Configuration
-      Parameters:
-      - DatabaseClass
-      - DatabaseUser
-      - DatabasePassword
-    - Label:
-        default: Database Storage Configuration
-      Parameters:
-      - StorageType
-      - StorageIops
-      - StorageEncrypted
-      - KmsKeyId
-    - Label:
-        default: Database Security Configuration
-      Parameters:
-      - EnhancedMonitoringConditionRole
-      - ClientLocation
-      - PubliclyAccessible
+      - Label:
+          default: Network Configuration
+        Parameters:
+          - VpcId
+          - SubnetIds
+          - SecurityGroup
+      - Label:
+          default: Database Basic Configuration
+        Parameters:
+          - DatabaseClass
+          - DatabaseReadReplicas
+          - DatabaseUser
+          - DatabasePassword
+      - Label:
+          default: Database Storage Configuration
+        Parameters:
+          - StorageType
+          - StorageIops
+          - StorageEncrypted
+          - KmsKeyId
+      - Label:
+          default: Database Security Configuration
+        Parameters:
+          - EnhancedMonitoringConditionRole
+          - ClientLocation
+          - PubliclyAccessible
     ParameterLabels:
       ClientLocation:
         default: Client Location
@@ -43,6 +59,8 @@ Metadata:
         default: Database Class
       DatabasePassword:
         default: Database Password
+      DatabaseReadReplicas:
+        default: Database Read Replicas
       DatabaseUser:
         default: Database User
       EnhancedMonitoringConditionRole:
@@ -74,31 +92,31 @@ Parameters:
     Type: String
   DatabaseClass:
     AllowedValues:
-    - db.t2.micro
-    - db.t2.small
-    - db.t2.medium
-    - db.t2.large
-    - db.m3.medium
-    - db.m3.large
-    - db.m3.xlarge
-    - db.m3.2xlarge
-    - db.m4.large
-    - db.m4.xlarge
-    - db.m4.2xlarge
-    - db.m4.4xlarge
-    - db.m4.10xlarge
-    - db.m4.16xlarge
-    - db.r3.large
-    - db.r3.xlarge
-    - db.r3.2xlarge
-    - db.r3.4xlarge
-    - db.r3.8xlarge
-    - db.r4.large
-    - db.r4.xlarge
-    - db.r4.2xlarge
-    - db.r4.4xlarge
-    - db.r4.8xlarge
-    Default: db.t2.micro
+      - db.t2.micro
+      - db.t2.small
+      - db.t2.medium
+      - db.t2.large
+      - db.m3.medium
+      - db.m3.large
+      - db.m3.xlarge
+      - db.m3.2xlarge
+      - db.m4.large
+      - db.m4.xlarge
+      - db.m4.2xlarge
+      - db.m4.4xlarge
+      - db.m4.10xlarge
+      - db.m4.16xlarge
+      - db.r3.large
+      - db.r3.xlarge
+      - db.r3.2xlarge
+      - db.r3.4xlarge
+      - db.r3.8xlarge
+      - db.r4.large
+      - db.r4.xlarge
+      - db.r4.2xlarge
+      - db.r4.4xlarge
+      - db.r4.8xlarge
+    Default: db.r3.large
     Description: Database instance class
     Type: String
   DatabasePassword:
@@ -109,6 +127,12 @@ Parameters:
     MinLength: '1'
     NoEcho: true
     Type: String
+  DatabaseReadReplicas:
+    Default: 0
+    Description: Number of read replica instances, set to 0 disables read replicas.
+    MaxValue: 16
+    MinValue: 0
+    Type: Number
   DatabaseSnapshot:
     Default: ''
     Description: ARN of a DB snapshot to restore from
@@ -124,8 +148,8 @@ Parameters:
     Type: String
   EnhancedMonitoringConditionRole:
     AllowedValues:
-    - ''
-    - rds-monitoring-role
+      - ''
+      - rds-monitoring-role
     Default: ''
     Description: Database enhanced monitoring role name, leaf blank to disable enhanced
       monitoring
@@ -138,8 +162,8 @@ Parameters:
     Type: String
   PubliclyAccessible:
     AllowedValues:
-    - 'false'
-    - 'true'
+      - 'false'
+      - 'true'
     Default: 'false'
     Description: Whether the database endpoint is publicly accessible
     Type: String
@@ -150,8 +174,8 @@ Parameters:
     Type: String
   StorageEncrypted:
     AllowedValues:
-    - 'true'
-    - 'false'
+      - 'true'
+      - 'false'
     Default: 'true'
     Description: Indicates whether the DB instance is encrypted.
     Type: String
@@ -171,9 +195,9 @@ Parameters:
     Type: Number
   StorageType:
     AllowedValues:
-    - gp2
-    - io1
-    - default
+      - gp2
+      - io1
+      - default
     Default: gp2
     Description: Database storage type
     Type: String
@@ -194,14 +218,28 @@ Resources:
     Properties:
       DBSubnetGroupName: !Ref 'DatabaseSubnetGroup'
       Engine: aurora
-      KmsKeyId: !If [StorageEncryptedConditon, !If [DefaultKmsCondition, !Ref 'AWS::NoValue',
-          !Ref 'KmsKeyId'], !Ref 'AWS::NoValue']
-      MasterUserPassword: !If [NewDatabaseCondition, !Ref 'DatabasePassword', !Ref 'AWS::NoValue']
-      MasterUsername: !If [NewDatabaseCondition, !Ref 'DatabaseUser', !Ref 'AWS::NoValue']
+      KmsKeyId: !If
+        - StorageEncryptedConditon
+        - !If
+          - DefaultKmsCondition
+          - !Ref 'AWS::NoValue'
+          - !Ref 'KmsKeyId'
+        - !Ref 'AWS::NoValue'
+      MasterUserPassword: !If
+        - NewDatabaseCondition
+        - !Ref 'DatabasePassword'
+        - !Ref 'AWS::NoValue'
+      MasterUsername: !If
+        - NewDatabaseCondition
+        - !Ref 'DatabaseUser'
+        - !Ref 'AWS::NoValue'
       Port: '3306'
       StorageEncrypted: !Ref 'StorageEncrypted'
       VpcSecurityGroupIds:
-      - !If [CreateSecurityGroupCondition, !Ref 'RdsSecurityGroup', !Ref 'SecurityGroup']
+        - !If
+          - CreateSecurityGroupCondition
+          - !Ref 'RdsSecurityGroup'
+          - !Ref 'SecurityGroup'
     Type: AWS::RDS::DBCluster
   RdsInstance1:
     DeletionPolicy: Delete
@@ -209,9 +247,14 @@ Resources:
       DBClusterIdentifier: !Ref 'RdsCluster'
       DBInstanceClass: !Ref 'DatabaseClass'
       Engine: aurora
-      MonitoringInterval: !If [EnhancedMonitoringCondition, '60', !Ref 'AWS::NoValue']
-      MonitoringRoleArn: !If [EnhancedMonitoringCondition, !Sub 'arn:aws:iam::${AWS::AccountId}:role/${EnhancedMonitoringConditionRole}',
-        !Ref 'AWS::NoValue']
+      MonitoringInterval: !If
+        - EnhancedMonitoringCondition
+        - '60'
+        - !Ref 'AWS::NoValue'
+      MonitoringRoleArn: !If
+        - EnhancedMonitoringCondition
+        - !Sub 'arn:aws:iam::${AWS::AccountId}:role/${EnhancedMonitoringConditionRole}'
+        - !Ref 'AWS::NoValue'
       PubliclyAccessible: !Ref 'PubliclyAccessible'
     Type: AWS::RDS::DBInstance
   RdsInstance2:
@@ -220,9 +263,14 @@ Resources:
       DBClusterIdentifier: !Ref 'RdsCluster'
       DBInstanceClass: !Ref 'DatabaseClass'
       Engine: aurora
-      MonitoringInterval: !If [EnhancedMonitoringCondition, '60', !Ref 'AWS::NoValue']
-      MonitoringRoleArn: !If [EnhancedMonitoringCondition, !Sub 'arn:aws:iam::${AWS::AccountId}:role/${EnhancedMonitoringConditionRole}',
-        !Ref 'AWS::NoValue']
+      MonitoringInterval: !If
+        - EnhancedMonitoringCondition
+        - '60'
+        - !Ref 'AWS::NoValue'
+      MonitoringRoleArn: !If
+        - EnhancedMonitoringCondition
+        - !Sub 'arn:aws:iam::${AWS::AccountId}:role/${EnhancedMonitoringConditionRole}'
+        - !Ref 'AWS::NoValue'
       PubliclyAccessible: !Ref 'PubliclyAccessible'
     Type: AWS::RDS::DBInstance
   RdsSecurityGroup:
@@ -230,9 +278,9 @@ Resources:
     Properties:
       GroupDescription: Enable local postgres access
       SecurityGroupIngress:
-      - CidrIp: !Ref 'ClientLocation'
-        FromPort: '3306'
-        IpProtocol: tcp
-        ToPort: '3306'
+        - CidrIp: !Ref 'ClientLocation'
+          FromPort: '3306'
+          IpProtocol: tcp
+          ToPort: '3306'
       VpcId: !Ref 'VpcId'
     Type: AWS::EC2::SecurityGroup
