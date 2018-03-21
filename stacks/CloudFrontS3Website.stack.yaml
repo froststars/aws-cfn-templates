@@ -1,0 +1,8 @@
+Stack:
+  TemplateBody:   ../solutions/CloudFrontS3Website/CloudFrontS3Website.yaml
+  Region:         us-east-1
+  StackName:      CloudFrontS3Website-Test
+#  Capabilities:   [CAPABILITY_IAM]
+
+  Parameters:
+    OriginAccessIdentity:  EGW0CE8OGNTK5
