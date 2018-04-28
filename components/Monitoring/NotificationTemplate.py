@@ -26,11 +26,11 @@ t.add_description('Alarm with email notification')
 #
 parameter_groups = [
     {
-        'Label': {'default': 'Network Configuration'},
+        'Label': {'default': 'Alarm Configuration'},
         'Parameters':
             [
-                'NumOfEmails',
                 'AlarmEmails',
+                'NumOfEmails',
             ]
     },
 ]
@@ -198,5 +198,5 @@ t.add_output([
 #
 # Write
 #
-cfnutil.write(t, __file__.replace('Template.py', '.template'),
+cfnutil.write(t, __file__.replace('Template.py', '.template.yaml'),
               write_yaml=True)
