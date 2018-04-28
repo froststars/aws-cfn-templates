@@ -8,7 +8,7 @@ from troposphere import ImportValue, Export
 from troposphere import Condition, And, Equals, If, Not, Or
 from troposphere import Template, Parameter, Ref, Tags, Output
 from troposphere import AWS_ACCOUNT_ID, AWS_REGION, AWS_STACK_ID, \
-    AWS_STACK_NAME, AWS_NO_VALUE
+    AWS_STACK_NAME, AWS_NO_VALUE, AWS_URL_SUFFIX, AWS_PARTITION
 from troposphere import Delete, Retain, Snapshot
 
 from troposphere.policies import CreationPolicy, ResourceSignal, UpdatePolicy, \
@@ -67,7 +67,6 @@ parameter_groups = [
                 'DatabaseMultiAz',
                 'DatabaseUser',
                 'DatabasePassword',
-                'DatabaseEnhancedMonitoring',
             ]
     },
     {
@@ -95,8 +94,17 @@ parameter_groups = [
             [
                 'DatabaseReplication',
             ]
-    }
+    },
+    {
 
+        'Label': {'default': 'Database Monitoring Configuration'},
+        'Parameters':
+            [
+                'EnhancedMonitoringInterval',
+                'SnsTopicArn',
+            ]
+
+    }
 ]
 
 t.add_metadata(
@@ -152,6 +160,7 @@ param_db_snapshot = t.add_parameter(Parameter(
     Default='',
 ))
 
+# https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.html
 param_db_class = t.add_parameter(Parameter(
     'DatabaseClass',
     Default='db.t2.micro',
@@ -165,11 +174,14 @@ param_db_engine = t.add_parameter(Parameter(
     Default='postgres',
     Description='Database engine',
     Type='String',
-    AllowedValues=['postgres', 'mysql',
+    AllowedValues=['postgres',
+                   'mysql',
                    'mariadb',
-                   'oracle-se2', 'oracle-se1'],
+                   'oracle-se2',
+                   'oracle-se1'],
 ))
 
+# https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_CreateDBInstance.html
 param_db_engine_version = t.add_parameter(Parameter(
     'DatabaseEngineVersion',
     Default='postgres-9.6.3',
@@ -210,14 +222,6 @@ param_db_multi_az = t.add_parameter(Parameter(
     Type='String',
     Default='false',
     AllowedValues=['true', 'false'],
-))
-
-param_db_enhanced_monitoring = t.add_parameter(Parameter(
-    'DatabaseEnhancedMonitoring',
-    Description='Whether enables database enhanced monitoring',
-    Type='String',
-    Default='false',
-    AllowedValues=['false', 'true'],
 ))
 
 param_db_storage_size = t.add_parameter(Parameter(
@@ -297,93 +301,107 @@ param_db_read_replica = t.add_parameter(Parameter(
     AllowedValues=['0', '1', '2', '3'],
 ))
 
+param_db_enhanced_monitoring_interval = t.add_parameter(Parameter(
+    'EnhancedMonitoringInterval',
+    Description='Interval, in seconds, between points when Enhanced Monitoring '
+                'metrics are collected for the DB instance, set to 0 disables '
+                'enhanced monitoring.',
+    Type='String',
+    Default='0',
+    AllowedValues=['0', '1', '5', '10', '15', '30', '60']
+))
+
+param_sns_topic_arn = t.add_parameter(Parameter(
+    'SnsTopicArn',
+    Description='ARN of an SNS topic that database event event notifications '
+                'are sent to, set this to blank disables event notification.',
+    Type='String',
+    Default=''
+))
+
 #
 # Condition
 #
+conditions = [
+    (
+        'CreateSecurityGroupCondition',
+        Equals(Ref(param_sg), '')
+    ),
+    (
+        'PostgresCondition',
+        Equals(Ref(param_db_engine), 'postgres'),
+    ),
+    (
+        'MysqlCondition',
+        Equals(Ref(param_db_engine), 'mysql'),
+    ),
+    (
+        'MariadbCondition',
+        Equals(Ref(param_db_engine), 'mariadb'),
+    ),
+    (
+        'OrcaleCondition',
+        Or(
+            Equals(Ref(param_db_engine), 'oracle-se1'),
+            Equals(Ref(param_db_engine), 'oracle-se2'),
+        )
+    ),
+    (
+        'NewDatabaseCondition',
+        Equals(Ref(param_db_snapshot), ''),
+    ),
+    (
+        'UseSnapshotCondition',
+        Not(Equals(Ref(param_db_snapshot), ''))
+    ),
+    (
+        'IopsStorageCondition',
+        Equals(Ref(param_db_stroage_type), 'io1'),
+    ),
+    (
+        'StorageEncryptedConditon',
+        Equals(Ref(param_db_storage_encrypted), 'true'),
+    ),
+    (
+        'DefaultKmsCondition',
+        Equals(Ref(param_db_kms_key), '')
+    ),
+    # (
+    #     'ChinaRegionCondition',
+    #     Equals(Ref(AWS_REGION), 'cn-north-1')
+    # ),
+    (
+        'EnhancedMonitoringCondition',
+        Not(Equals(Ref(param_db_enhanced_monitoring_interval), '0')),
+    ),
+    (
+        'DatabaseReadReplicaCondition1',
+        Or(
+            Equals(Ref(param_db_read_replica), '1'),
+            Equals(Ref(param_db_read_replica), '2'),
+            Equals(Ref(param_db_read_replica), '3'),
+        )
+    ),
+    (
+        'DatabaseReadReplicaCondition2',
+        Or(
+            Equals(Ref(param_db_read_replica), '2'),
+            Equals(Ref(param_db_read_replica), '3'),
+        )
+    ),
+    (
+        'DatabaseReadReplicaCondition3',
+        Equals(Ref(param_db_read_replica), '3')
 
-t.add_condition(
-    'CreateSecurityGroupCondition',
-    Equals(Ref(param_sg), '')
-)
-t.add_condition(
-    'PostgresCondition',
-    Equals(Ref(param_db_engine), 'postgres'),
-)
-
-t.add_condition(
-    'MysqlCondition',
-    Equals(Ref(param_db_engine), 'mysql'),
-)
-
-t.add_condition(
-    'MariadbCondition',
-    Equals(Ref(param_db_engine), 'mariadb'),
-)
-
-t.add_condition(
-    'OrcaleCondition',
-    Or(
-        Equals(Ref(param_db_engine), 'oracle-se1'),
-        Equals(Ref(param_db_engine), 'oracle-se2'),
+    ),
+    (
+        'EventNotificationCondition',
+        Not(Equals(Ref(param_sns_topic_arn), ''))
     )
-)
+]
 
-t.add_condition(
-    'NewDatabaseCondition',
-    Equals(Ref(param_db_snapshot), ''),
-)
-
-t.add_condition(
-    'UseSnapshotCondition',
-    Not(Equals(Ref(param_db_snapshot), ''))
-)
-
-t.add_condition(
-    'IopsStorageCondition',
-    Equals(Ref(param_db_stroage_type), 'io1'),
-)
-
-t.add_condition(
-    'StorageEncryptedConditon',
-    Equals(Ref(param_db_storage_encrypted), 'true'),
-)
-
-t.add_condition(
-    'DefaultKmsCondition',
-    Equals(Ref(param_db_kms_key), '')
-)
-
-t.add_condition(
-    'ChinaRegionCondition',
-    Equals(Ref(AWS_REGION), 'cn-north-1')
-)
-
-t.add_condition(
-    'EnhancedMonitoringCondition',
-    Equals(Ref(param_db_enhanced_monitoring), 'true'),
-)
-
-t.add_condition(
-    'DatabaseReadReplicaCondition1',
-    Or(
-        Equals(Ref(param_db_read_replica), '1'),
-        Equals(Ref(param_db_read_replica), '2'),
-        Equals(Ref(param_db_read_replica), '3'),
-    )
-)
-t.add_condition(
-    'DatabaseReadReplicaCondition2',
-    Or(
-        Equals(Ref(param_db_read_replica), '2'),
-        Equals(Ref(param_db_read_replica), '3'),
-    )
-)
-
-t.add_condition(
-    'DatabaseReadReplicaCondition3',
-    Equals(Ref(param_db_read_replica), '2')
-
-)
+for args in conditions:
+    t.add_condition(*args)
 
 #
 # Resources
@@ -432,7 +450,7 @@ rds_sg = t.add_resource(ec2.SecurityGroup(
 
 subnet_group = t.add_resource(rds.DBSubnetGroup(
     'DatabaseSubnetGroup',
-    DBSubnetGroupDescription='Postgres RDS subnet group',
+    DBSubnetGroupDescription='RDS subnet group',
     SubnetIds=Ref(param_subnetids)
 ))
 
@@ -444,19 +462,12 @@ enhanced_monitoring_role = t.add_resource(iam.Role(
             Effect=Allow,
             Action=[awacs.sts.AssumeRole],
             Principal=Principal(
-                'Service',
-                [
-                    If('ChinaRegionCondition',
-                       'monitoring.rds.amazonaws.com.cn',
-                       'monitoring.rds.amazonaws.com')
-                ]
+                'Service', Sub('monitoring.rds.${AWS::URLSuffix}')
             ))
         ]),
     ManagedPolicyArns=[
         Sub(
-            'arn:${PARTITION}:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole',
-            PARTITION=If('ChinaRegionCondition', 'aws-cn', 'aws')
-        )
+            'arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole')
     ],
 ))
 
@@ -506,30 +517,25 @@ rds_instance = t.add_resource(rds.DBInstance(
 
     MonitoringInterval=If(
         'EnhancedMonitoringCondition',
-        '60',
+        Ref(param_db_enhanced_monitoring_interval),
         Ref(AWS_NO_VALUE)),
-
     MonitoringRoleArn=If(
         'EnhancedMonitoringCondition',
         GetAtt(enhanced_monitoring_role, 'Arn'),
         Ref(AWS_NO_VALUE)),
 ))
 
-for n in range(1, 3):
+for n in [1, 2, 3]:
     t.add_resource(rds.DBInstance(
         'RdsReadReplicaInstance%d' % n,
-
         Condition='DatabaseReadReplicaCondition%d' % n,
         DependsOn='RdsInstance',
-
         SourceDBInstanceIdentifier=Ref(rds_instance),
-
         Engine=Ref(param_db_engine),
         EngineVersion=Select(1, Split('-', Ref(param_db_engine_version))),
         AllowMajorVersionUpgrade=False,
         AutoMinorVersionUpgrade=True,
         DBInstanceClass=Ref(param_db_class),
-
         StorageType=Ref(param_db_stroage_type),
         AllocatedStorage=Ref(param_db_storage_size),
         Iops=If('IopsStorageCondition', Ref(param_db_storage_iops),
@@ -541,7 +547,6 @@ for n in range(1, 3):
                        Ref(param_db_kms_key)),
                     Ref(AWS_NO_VALUE),
                     ),
-
         VPCSecurityGroups=[
             If(
                 'CreateSecurityGroupCondition',
@@ -551,17 +556,46 @@ for n in range(1, 3):
         ],
         PubliclyAccessible=Ref(
             param_db_publicly_accessible),
-
         MonitoringInterval=If(
             'EnhancedMonitoringCondition',
-            '60',
+            Ref(param_db_enhanced_monitoring_interval),
             Ref(AWS_NO_VALUE)),
-
         MonitoringRoleArn=If(
             'EnhancedMonitoringCondition',
             GetAtt(enhanced_monitoring_role, 'Arn'),
             Ref(AWS_NO_VALUE)),
     ))
+
+instance_event_subscription = t.add_resource(rds.EventSubscription(
+    'InstanceEventSubscription',
+    Condition='EventNotificationCondition',
+    Enabled=True,
+    SnsTopicArn=Ref(param_sns_topic_arn),
+    SourceType='db-instance',
+    SourceIds=[
+        Ref(rds_instance),
+        If('DatabaseReadReplicaCondition1', Ref('RdsReadReplicaInstance1'),
+           Ref(AWS_NO_VALUE)),
+        If('DatabaseReadReplicaCondition2', Ref('RdsReadReplicaInstance2'),
+           Ref(AWS_NO_VALUE)),
+        If('DatabaseReadReplicaCondition3', Ref('RdsReadReplicaInstance3'),
+           Ref(AWS_NO_VALUE)),
+    ]
+))
+
+# security_group_event_subscription = t.add_resource(rds.EventSubscription(
+#     'SecurityGroupEventSubscription',
+#     Condition='EventNotificationCondition',
+#     Enabled=True,
+#     SnsTopicArn=Ref(param_sns_topic_arn),
+#     SourceType='db-security-group',
+#     SourceIds=[
+#         If(
+#             'CreateSecurityGroupCondition',
+#             Ref(rds_sg),
+#             Ref(param_sg)
+#         )]
+# ))
 
 #
 # Output
@@ -588,7 +622,7 @@ t.add_output([
     Output('Replica2EndpointAddress',
            Condition='DatabaseReadReplicaCondition2',
            Description='Endpoint address',
-           Value=GetAtt('RdsReadReplicaInstance1', 'Endpoint.Address')
+           Value=GetAtt('RdsReadReplicaInstance2', 'Endpoint.Address')
            ),
     Output('Replica2EndpointPort',
            Condition='DatabaseReadReplicaCondition2',
@@ -598,7 +632,7 @@ t.add_output([
     Output('Replica3EndpointAddress',
            Condition='DatabaseReadReplicaCondition3',
            Description='Endpoint address',
-           Value=GetAtt('RdsReadReplicaInstance1', 'Endpoint.Address')
+           Value=GetAtt('RdsReadReplicaInstance3', 'Endpoint.Address')
            ),
     Output('Replica3EndpointPort',
            Condition='DatabaseReadReplicaCondition3',
@@ -618,6 +652,4 @@ t.add_output([
 #
 # Write template
 #
-cfnutil.write(t,
-              __file__.replace('Template.py', '.template.yaml'),
-              write_yaml=True)
+cfnutil.write(t, __file__.replace('Template.py', '.template.yaml'))
