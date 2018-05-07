@@ -313,7 +313,7 @@ param_db_enhanced_monitoring_interval = t.add_parameter(Parameter(
 
 param_sns_topic_arn = t.add_parameter(Parameter(
     'SnsTopicArn',
-    Description='ARN of an SNS topic that database event event notifications '
+    Description='ARN of an SNS topic that database send event notifications '
                 'are sent to, set this to blank disables event notification.',
     Type='String',
     Default=''

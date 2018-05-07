@@ -60,6 +60,7 @@ parameter_groups = [
                 # 'DatabaseName',
                 # 'DatabaseSnapshot',
                 'DatabaseClass',
+                'DatabaseEngine',
                 # 'DatabaseEngineVersion',
                 'DatabaseReadReplicas',
                 'DatabaseUser',
@@ -148,6 +149,16 @@ param_db_class = t.add_parameter(Parameter(
     Description='Database instance class',
     Type='String',
     AllowedValues=cfnutil.load_mapping('mapping/aurora-instance-types.json'),
+))
+
+param_db_engine = t.add_parameter(Parameter(
+    'DatabaseEngine',
+    Default='postgres',
+    Description='Database engine',
+    Type='String',
+    AllowedValues=['aurora',
+                   'aurora-mysql',
+                   'aurora-postgresql'],
 ))
 
 # param_db_engine_version = t.add_parameter(Parameter(
@@ -270,46 +281,44 @@ param_db_publicly_accessible = t.add_parameter(Parameter(
 # Condition
 #
 
-t.add_condition(
-    'CreateSecurityGroupCondition',
-    Equals(Ref(param_sg), '')
-)
+conditions = [
+    (
+        'CreateSecurityGroupCondition',
+        Equals(Ref(param_sg), '')
+    ),
+    (
+        'NewDatabaseCondition',
+        Equals(Ref(param_db_snapshot), '')
+    ),
+    (
 
-t.add_condition(
-    'NewDatabaseCondition',
-    Equals(Ref(param_db_snapshot), ''),
-)
-
-t.add_condition(
-    'OneReadReplicaCondition',
-    Equals(Ref(param_db_read_replicas), 1),
-)
-
-#
-# t.add_condition(
-#     'UseSnapshotCondition',
-#     Not(Equals(Ref(param_db_snapshot), ''))
-# )
-
-t.add_condition(
-    'IopsStorageCondition',
-    Equals(Ref(param_db_stroage_type), 'io1'),
-)
-
-t.add_condition(
-    'StorageEncryptedConditon',
-    Equals(Ref(param_db_storage_encrypted), 'true'),
-)
-
-t.add_condition(
-    'DefaultKmsCondition',
-    Equals(Ref(param_db_kms_key), '')
-)
-
-t.add_condition(
-    'EnhancedMonitoringCondition',
-    Not(Equals(Ref(param_db_monitoring_role), '')),
-)
+        'IopsStorageCondition',
+        Equals(Ref(param_db_stroage_type), 'io1'),
+    ),
+    (
+        'StorageEncryptedConditon',
+        Equals(Ref(param_db_storage_encrypted), 'true'),
+    ),
+    (
+        'DefaultKmsCondition',
+        Equals(Ref(param_db_kms_key), '')
+    ),
+    (
+        'EnhancedMonitoringCondition',
+        Not(Equals(Ref(param_db_monitoring_role), ''))
+    ),
+    (
+        'PostgresCondition',
+        Or(
+            Equals(Ref(param_db_engine), 'aurora'),
+            Equals(Ref(param_db_engine), 'aurora-mysql')
+        )
+    ),
+    (
+        'MysqlCondition',
+        Equals(Ref(param_db_engine), 'aurora-postgresql'),
+    ),
+]
 
 #
 # Resources
@@ -321,12 +330,22 @@ rds_sg = t.add_resource(ec2.SecurityGroup(
     VpcId=Ref(param_vpcid),
     GroupDescription='Enable local postgres access',
     SecurityGroupIngress=[
-        ec2.SecurityGroupRule(
-            IpProtocol='tcp',
-            FromPort='3306',
-            ToPort='3306',
-            CidrIp=Ref(param_db_client_location),
-        )
+        If('PostgresCondition',
+           ec2.SecurityGroupRule(
+               IpProtocol='tcp',
+               FromPort='5432',
+               ToPort='5432',
+               CidrIp=Ref(param_db_client_location),
+           ),
+           Ref(AWS_NO_VALUE)),
+        If('MysqlCondition',
+           ec2.SecurityGroupRule(
+               IpProtocol='tcp',
+               FromPort='3306',
+               ToPort='3306',
+               CidrIp=Ref(param_db_client_location),
+           ),
+           Ref(AWS_NO_VALUE)),
     ],
 ))
 
@@ -347,7 +366,7 @@ rds_cluster = t.add_resource(rds.DBCluster(
     MasterUserPassword=If('NewDatabaseCondition', Ref(param_db_password),
                           Ref(AWS_NO_VALUE)),
 
-    Engine='aurora',
+    Engine=Ref(param_db_engine),
     DBSubnetGroupName=Ref(subnet_group),
     Port='3306',
     VpcSecurityGroupIds=[
@@ -371,7 +390,7 @@ rds_instance1 = t.add_resource(rds.DBInstance(
     DeletionPolicy=Delete,
     DBClusterIdentifier=Ref(rds_cluster),
 
-    Engine='aurora',
+    Engine=Ref(param_db_engine),
     DBInstanceClass=Ref(param_db_class),
 
     PubliclyAccessible=Ref(
