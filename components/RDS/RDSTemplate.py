@@ -609,6 +609,10 @@ t.add_output([
            Description='Endpoint port',
            Value=GetAtt(rds_instance, 'Endpoint.Port')
            ),
+    Output('DBInstanceIdentifier',
+           Description='Database instance identifier',
+           Value=Ref(rds_instance)
+           ),
     Output('Replica1EndpointAddress',
            Condition='DatabaseReadReplicaCondition1',
            Description='Endpoint address',
@@ -617,7 +621,12 @@ t.add_output([
     Output('Replica1EndpointPort',
            Condition='DatabaseReadReplicaCondition1',
            Description='Endpoint port',
-           Value=GetAtt(rds_instance, 'Endpoint.Port')
+           Value=GetAtt('RdsReadReplicaInstance1', 'Endpoint.Port')
+           ),
+    Output('Replica1InstanceIdentifier',
+           Condition='DatabaseReadReplicaCondition1',
+           Description='Database instance identifier',
+           Value=Ref('RdsReadReplicaInstance1')
            ),
     Output('Replica2EndpointAddress',
            Condition='DatabaseReadReplicaCondition2',
@@ -627,7 +636,12 @@ t.add_output([
     Output('Replica2EndpointPort',
            Condition='DatabaseReadReplicaCondition2',
            Description='Endpoint port',
-           Value=GetAtt(rds_instance, 'Endpoint.Port')
+           Value=GetAtt('RdsReadReplicaInstance2', 'Endpoint.Port')
+           ),
+    Output('Replica2InstanceIdentifier',
+           Condition='DatabaseReadReplicaCondition2',
+           Description='Database instance identifier',
+           Value=Ref('RdsReadReplicaInstance2')
            ),
     Output('Replica3EndpointAddress',
            Condition='DatabaseReadReplicaCondition3',
@@ -637,7 +651,12 @@ t.add_output([
     Output('Replica3EndpointPort',
            Condition='DatabaseReadReplicaCondition3',
            Description='Endpoint port',
-           Value=GetAtt(rds_instance, 'Endpoint.Port')
+           Value=GetAtt('RdsReadReplicaInstance3', 'Endpoint.Port')
+           ),
+    Output('Replica3InstanceIdentifier',
+           Condition='DatabaseReadReplicaCondition3',
+           Description='Database instance identifier',
+           Value=Ref('RdsReadReplicaInstance3')
            ),
     Output('EnvironmentVariables',
            Description='Database environment variables',

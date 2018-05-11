@@ -149,6 +149,9 @@ Metadata:
       VpcId:
         default: Vpc Id
 Outputs:
+  DBInstanceIdentifier:
+    Description: Database instance identifier
+    Value: !Ref 'RdsInstance'
   EndpointAddress:
     Description: Endpoint address
     Value: !GetAtt 'RdsInstance.Endpoint.Address'
@@ -178,7 +181,11 @@ Outputs:
   Replica1EndpointPort:
     Condition: DatabaseReadReplicaCondition1
     Description: Endpoint port
-    Value: !GetAtt 'RdsInstance.Endpoint.Port'
+    Value: !GetAtt 'RdsReadReplicaInstance1.Endpoint.Port'
+  Replica1InstanceIdentifier:
+    Condition: DatabaseReadReplicaCondition1
+    Description: Database instance identifier
+    Value: !Ref 'RdsReadReplicaInstance1'
   Replica2EndpointAddress:
     Condition: DatabaseReadReplicaCondition2
     Description: Endpoint address
@@ -186,7 +193,11 @@ Outputs:
   Replica2EndpointPort:
     Condition: DatabaseReadReplicaCondition2
     Description: Endpoint port
-    Value: !GetAtt 'RdsInstance.Endpoint.Port'
+    Value: !GetAtt 'RdsReadReplicaInstance2.Endpoint.Port'
+  Replica2InstanceIdentifier:
+    Condition: DatabaseReadReplicaCondition2
+    Description: Database instance identifier
+    Value: !Ref 'RdsReadReplicaInstance2'
   Replica3EndpointAddress:
     Condition: DatabaseReadReplicaCondition3
     Description: Endpoint address
@@ -194,7 +205,11 @@ Outputs:
   Replica3EndpointPort:
     Condition: DatabaseReadReplicaCondition3
     Description: Endpoint port
-    Value: !GetAtt 'RdsInstance.Endpoint.Port'
+    Value: !GetAtt 'RdsReadReplicaInstance3.Endpoint.Port'
+  Replica3InstanceIdentifier:
+    Condition: DatabaseReadReplicaCondition3
+    Description: Database instance identifier
+    Value: !Ref 'RdsReadReplicaInstance3'
 Parameters:
   ClientLocation:
     AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
@@ -399,7 +414,7 @@ Parameters:
     Type: String
   SnsTopicArn:
     Default: ''
-    Description: ARN of an SNS topic that database event event notifications are sent
+    Description: ARN of an SNS topic that database send event notifications are sent
       to, set this to blank disables event notification.
     Type: String
   StorageEncrypted:
