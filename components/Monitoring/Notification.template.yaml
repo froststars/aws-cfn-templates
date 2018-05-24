@@ -17,9 +17,6 @@ Conditions:
     - !Equals
       - !Ref 'NumOfEmails'
       - '4'
-    - !Equals
-      - !Ref 'NumOfEmails'
-      - '3'
   HasDisplayNameCondition: !Not
     - !Equals
       - !Ref 'DisplayName'

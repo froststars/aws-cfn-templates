@@ -102,7 +102,6 @@ t.add_condition(
         Equals(Ref(param_num_emails), '6'),
         Equals(Ref(param_num_emails), '5'),
         Equals(Ref(param_num_emails), '4'),
-        Equals(Ref(param_num_emails), '3'),
 
     ))
 t.add_condition(
