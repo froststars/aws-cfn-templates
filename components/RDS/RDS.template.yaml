@@ -82,6 +82,7 @@ Metadata:
           - DatabaseClass
           - DatabaseEngine
           - DatabaseEngineVersion
+          - DatabaseParameterGroupFamily
           - DatabaseMultiAz
           - DatabaseUser
           - DatabasePassword
@@ -118,6 +119,8 @@ Metadata:
         default: Database Engine Version
       DatabaseMultiAz:
         default: Database Multi Az
+      DatabaseParameterGroupFamily:
+        default: Database Parameter Group Family
       DatabasePassword:
         default: Database Password
       DatabaseReplication:
@@ -158,22 +161,6 @@ Outputs:
   EndpointPort:
     Description: Endpoint port
     Value: !GetAtt 'RdsInstance.Endpoint.Port'
-  EnvironmentVariables:
-    Description: Database environment variables
-    Value: !Join
-      - ''
-      - - PGHOST=
-        - !GetAtt 'RdsInstance.Endpoint.Address'
-        - ' '
-        - PGPORT=
-        - !GetAtt 'RdsInstance.Endpoint.Port'
-        - ' '
-        - PGUSER=
-        - !Ref 'DatabaseUser'
-        - ' '
-        - PGPASSWORD=
-        - !Ref 'DatabasePassword'
-        - ' '
   Replica1EndpointAddress:
     Condition: DatabaseReadReplicaCondition1
     Description: Endpoint address
@@ -263,83 +250,211 @@ Parameters:
       - postgres
       - mysql
       - mariadb
-      - oracle-se2
-      - oracle-se1
     Default: postgres
     Description: Database engine
     Type: String
   DatabaseEngineVersion:
     AllowedValues:
-      - mariadb-10.2.12
-      - mariadb-10.2.11
-      - mariadb-10.1.31
-      - mariadb-10.1.26
-      - mariadb-10.1.23
-      - mariadb-10.1.19
-      - mariadb-10.1.14
-      - mariadb-10.0.34
-      - mariadb-10.0.32
-      - mariadb-10.0.31
-      - mariadb-10.0.28
-      - mariadb-10.0.24
+      - aurora-5.6.10a
+      - aurora-mysql-5.7.12
+      - aurora-mysql-pq-5.6.10a
+      - aurora-postgresql-9.6.3
+      - aurora-postgresql-9.6.6
+      - aurora-postgresql-9.6.8
       - mariadb-10.0.17
-      - mysql-5.7.21
-      - mysql-5.7.19
-      - mysql-5.7.17
-      - mysql-5.7.16
-      - mysql-5.6.39
-      - mysql-5.6.37
-      - mysql-5.6.35
-      - mysql-5.6.34
-      - mysql-5.6.29
-      - mysql-5.6.27
-      - mysql-5.5.59
-      - mysql-5.5.57
-      - mysql-5.5.54
-      - mysql-5.5.53
+      - mariadb-10.0.24
+      - mariadb-10.0.28
+      - mariadb-10.0.31
+      - mariadb-10.0.32
+      - mariadb-10.0.34
+      - mariadb-10.1.14
+      - mariadb-10.1.19
+      - mariadb-10.1.23
+      - mariadb-10.1.26
+      - mariadb-10.1.31
+      - mariadb-10.2.11
+      - mariadb-10.2.12
       - mysql-5.5.46
-      - oracle-12.1.0.2.v8
-      - oracle-12.1.0.2.v7
-      - oracle-12.1.0.2.v6
-      - oracle-12.1.0.2.v5
-      - oracle-12.1.0.2.v4
-      - oracle-12.1.0.2.v3
-      - oracle-12.1.0.2.v2
-      - oracle-12.1.0.2.v1
-      - oracle-11.2.0.4.v12
-      - oracle-11.2.0.4.v11
-      - oracle-11.2.0.4.v10
-      - oracle-11.2.0.4.v9
-      - oracle-11.2.0.4.v8
-      - oracle-11.2.0.4.v7
-      - oracle-11.2.0.4.v6
-      - oracle-11.2.0.4.v5
-      - oracle-11.2.0.4.v4
-      - oracle-11.2.0.4.v3
-      - oracle-11.2.0.4.v1
-      - postgres-10.3
+      - mysql-5.5.53
+      - mysql-5.5.54
+      - mysql-5.5.57
+      - mysql-5.5.59
+      - mysql-5.6.27
+      - mysql-5.6.29
+      - mysql-5.6.34
+      - mysql-5.6.35
+      - mysql-5.6.37
+      - mysql-5.6.39
+      - mysql-5.7.16
+      - mysql-5.7.17
+      - mysql-5.7.19
+      - mysql-5.7.21
+      - neptune-1.0.1.0
+      - oracle-ee-11.2.0.4.v1
+      - oracle-ee-11.2.0.4.v10
+      - oracle-ee-11.2.0.4.v11
+      - oracle-ee-11.2.0.4.v12
+      - oracle-ee-11.2.0.4.v13
+      - oracle-ee-11.2.0.4.v14
+      - oracle-ee-11.2.0.4.v15
+      - oracle-ee-11.2.0.4.v16
+      - oracle-ee-11.2.0.4.v3
+      - oracle-ee-11.2.0.4.v4
+      - oracle-ee-11.2.0.4.v5
+      - oracle-ee-11.2.0.4.v6
+      - oracle-ee-11.2.0.4.v7
+      - oracle-ee-11.2.0.4.v8
+      - oracle-ee-11.2.0.4.v9
+      - oracle-ee-12.1.0.2.v1
+      - oracle-ee-12.1.0.2.v10
+      - oracle-ee-12.1.0.2.v11
+      - oracle-ee-12.1.0.2.v12
+      - oracle-ee-12.1.0.2.v2
+      - oracle-ee-12.1.0.2.v3
+      - oracle-ee-12.1.0.2.v4
+      - oracle-ee-12.1.0.2.v5
+      - oracle-ee-12.1.0.2.v6
+      - oracle-ee-12.1.0.2.v7
+      - oracle-ee-12.1.0.2.v8
+      - oracle-ee-12.1.0.2.v9
+      - oracle-se-11.2.0.4.v1
+      - oracle-se-11.2.0.4.v10
+      - oracle-se-11.2.0.4.v11
+      - oracle-se-11.2.0.4.v12
+      - oracle-se-11.2.0.4.v13
+      - oracle-se-11.2.0.4.v14
+      - oracle-se-11.2.0.4.v15
+      - oracle-se-11.2.0.4.v16
+      - oracle-se-11.2.0.4.v3
+      - oracle-se-11.2.0.4.v4
+      - oracle-se-11.2.0.4.v5
+      - oracle-se-11.2.0.4.v6
+      - oracle-se-11.2.0.4.v7
+      - oracle-se-11.2.0.4.v8
+      - oracle-se-11.2.0.4.v9
+      - oracle-se1-11.2.0.4.v1
+      - oracle-se1-11.2.0.4.v10
+      - oracle-se1-11.2.0.4.v11
+      - oracle-se1-11.2.0.4.v12
+      - oracle-se1-11.2.0.4.v13
+      - oracle-se1-11.2.0.4.v14
+      - oracle-se1-11.2.0.4.v15
+      - oracle-se1-11.2.0.4.v16
+      - oracle-se1-11.2.0.4.v3
+      - oracle-se1-11.2.0.4.v4
+      - oracle-se1-11.2.0.4.v5
+      - oracle-se1-11.2.0.4.v6
+      - oracle-se1-11.2.0.4.v7
+      - oracle-se1-11.2.0.4.v8
+      - oracle-se1-11.2.0.4.v9
+      - oracle-se2-12.1.0.2.v10
+      - oracle-se2-12.1.0.2.v11
+      - oracle-se2-12.1.0.2.v12
+      - oracle-se2-12.1.0.2.v2
+      - oracle-se2-12.1.0.2.v3
+      - oracle-se2-12.1.0.2.v4
+      - oracle-se2-12.1.0.2.v5
+      - oracle-se2-12.1.0.2.v6
+      - oracle-se2-12.1.0.2.v7
+      - oracle-se2-12.1.0.2.v8
+      - oracle-se2-12.1.0.2.v9
       - postgres-10.1
-      - postgres-9.6.6
-      - postgres-9.6.5
-      - postgres-9.6.3
-      - postgres-9.6.2
-      - postgres-9.6.1
-      - postgres-9.5.9
-      - postgres-9.5.7
-      - postgres-9.5.6
-      - postgres-9.5.4
-      - postgres-9.5.2
-      - postgres-9.4.14
-      - postgres-9.4.12
-      - postgres-9.4.11
-      - postgres-9.4.9
-      - postgres-9.4.7
-      - postgres-9.3.19
-      - postgres-9.3.17
-      - postgres-9.3.16
-      - postgres-9.3.14
+      - postgres-10.3
       - postgres-9.3.12
-    Default: postgres-9.6.3
+      - postgres-9.3.14
+      - postgres-9.3.16
+      - postgres-9.3.17
+      - postgres-9.3.19
+      - postgres-9.3.20
+      - postgres-9.3.22
+      - postgres-9.4.11
+      - postgres-9.4.12
+      - postgres-9.4.14
+      - postgres-9.4.15
+      - postgres-9.4.17
+      - postgres-9.4.7
+      - postgres-9.4.9
+      - postgres-9.5.10
+      - postgres-9.5.12
+      - postgres-9.5.2
+      - postgres-9.5.4
+      - postgres-9.5.6
+      - postgres-9.5.7
+      - postgres-9.5.9
+      - postgres-9.6.1
+      - postgres-9.6.2
+      - postgres-9.6.3
+      - postgres-9.6.5
+      - postgres-9.6.6
+      - postgres-9.6.8
+      - sqlserver-ee-10.50.6000.34.v1
+      - sqlserver-ee-10.50.6529.0.v1
+      - sqlserver-ee-10.50.6560.0.v1
+      - sqlserver-ee-11.00.5058.0.v1
+      - sqlserver-ee-11.00.6020.0.v1
+      - sqlserver-ee-11.00.6594.0.v1
+      - sqlserver-ee-11.00.7462.6.v1
+      - sqlserver-ee-12.00.5000.0.v1
+      - sqlserver-ee-12.00.5546.0.v1
+      - sqlserver-ee-12.00.5571.0.v1
+      - sqlserver-ee-13.00.2164.0.v1
+      - sqlserver-ee-13.00.4422.0.v1
+      - sqlserver-ee-13.00.4451.0.v1
+      - sqlserver-ee-13.00.4466.4.v1
+      - sqlserver-ee-14.00.1000.169.v1
+      - sqlserver-ee-14.00.3015.40.v1
+      - sqlserver-ex-10.50.6000.34.v1
+      - sqlserver-ex-10.50.6529.0.v1
+      - sqlserver-ex-10.50.6560.0.v1
+      - sqlserver-ex-11.00.5058.0.v1
+      - sqlserver-ex-11.00.6020.0.v1
+      - sqlserver-ex-11.00.6594.0.v1
+      - sqlserver-ex-11.00.7462.6.v1
+      - sqlserver-ex-12.00.4422.0.v1
+      - sqlserver-ex-12.00.5000.0.v1
+      - sqlserver-ex-12.00.5546.0.v1
+      - sqlserver-ex-12.00.5571.0.v1
+      - sqlserver-ex-13.00.2164.0.v1
+      - sqlserver-ex-13.00.4422.0.v1
+      - sqlserver-ex-13.00.4451.0.v1
+      - sqlserver-ex-13.00.4466.4.v1
+      - sqlserver-ex-14.00.1000.169.v1
+      - sqlserver-ex-14.00.3015.40.v1
+      - sqlserver-se-10.50.6000.34.v1
+      - sqlserver-se-10.50.6529.0.v1
+      - sqlserver-se-10.50.6560.0.v1
+      - sqlserver-se-11.00.5058.0.v1
+      - sqlserver-se-11.00.6020.0.v1
+      - sqlserver-se-11.00.6594.0.v1
+      - sqlserver-se-11.00.7462.6.v1
+      - sqlserver-se-12.00.4422.0.v1
+      - sqlserver-se-12.00.5000.0.v1
+      - sqlserver-se-12.00.5546.0.v1
+      - sqlserver-se-12.00.5571.0.v1
+      - sqlserver-se-13.00.2164.0.v1
+      - sqlserver-se-13.00.4422.0.v1
+      - sqlserver-se-13.00.4451.0.v1
+      - sqlserver-se-13.00.4466.4.v1
+      - sqlserver-se-14.00.1000.169.v1
+      - sqlserver-se-14.00.3015.40.v1
+      - sqlserver-web-10.50.6000.34.v1
+      - sqlserver-web-10.50.6529.0.v1
+      - sqlserver-web-10.50.6560.0.v1
+      - sqlserver-web-11.00.5058.0.v1
+      - sqlserver-web-11.00.6020.0.v1
+      - sqlserver-web-11.00.6594.0.v1
+      - sqlserver-web-11.00.7462.6.v1
+      - sqlserver-web-12.00.4422.0.v1
+      - sqlserver-web-12.00.5000.0.v1
+      - sqlserver-web-12.00.5546.0.v1
+      - sqlserver-web-12.00.5571.0.v1
+      - sqlserver-web-13.00.2164.0.v1
+      - sqlserver-web-13.00.4422.0.v1
+      - sqlserver-web-13.00.4451.0.v1
+      - sqlserver-web-13.00.4466.4.v1
+      - sqlserver-web-14.00.1000.169.v1
+      - sqlserver-web-14.00.3015.40.v1
+    Default: postgres-9.6.6
     Description: Database engine version, must be a version matches specified database
       engine.
     Type: String
@@ -350,9 +465,53 @@ Parameters:
     Default: 'false'
     Description: Whether use a multi-AZ Deployment
     Type: String
+  DatabaseParameterGroupFamily:
+    AllowedValues:
+      - aurora-mysql-pq
+      - aurora-mysql5.7
+      - aurora-postgresql9.6
+      - aurora5.6
+      - mariadb10.0
+      - mariadb10.1
+      - mariadb10.2
+      - mysql5.5
+      - mysql5.6
+      - mysql5.7
+      - neptune1
+      - oracle-ee-11.2
+      - oracle-ee-12.1
+      - oracle-se-11.2
+      - oracle-se1-11.2
+      - oracle-se2-12.1
+      - postgres10
+      - postgres9.3
+      - postgres9.4
+      - postgres9.5
+      - postgres9.6
+      - sqlserver-ee-10.5
+      - sqlserver-ee-11.0
+      - sqlserver-ee-12.0
+      - sqlserver-ee-13.0
+      - sqlserver-ee-14.0
+      - sqlserver-ex-10.5
+      - sqlserver-ex-11.0
+      - sqlserver-ex-12.0
+      - sqlserver-ex-13.0
+      - sqlserver-ex-14.0
+      - sqlserver-se-10.5
+      - sqlserver-se-11.0
+      - sqlserver-se-12.0
+      - sqlserver-se-13.0
+      - sqlserver-se-14.0
+      - sqlserver-web-10.5
+      - sqlserver-web-11.0
+      - sqlserver-web-12.0
+      - sqlserver-web-13.0
+      - sqlserver-web-14.0
+    Default: postgres9.6
+    Description: Database parameter group family
+    Type: String
   DatabasePassword:
-    AllowedPattern: '[a-zA-Z0-9]*'
-    ConstraintDescription: must contain only alphanumeric characters.
     Description: The database admin account password, ignored when a snapshot is specified
     MaxLength: '41'
     MinLength: '1'
@@ -454,6 +613,11 @@ Parameters:
     Description: VpcId of an existing VPC.
     Type: AWS::EC2::VPC::Id
 Resources:
+  DatabaseParameterGroup:
+    Properties:
+      Description: RDS parameter group
+      Family: !Ref 'DatabaseParameterGroupFamily'
+    Type: AWS::RDS::DBParameterGroup
   DatabaseSubnetGroup:
     Properties:
       DBSubnetGroupDescription: RDS subnet group
@@ -498,7 +662,10 @@ Resources:
       AllocatedStorage: !Ref 'StorageSize'
       AllowMajorVersionUpgrade: 'false'
       AutoMinorVersionUpgrade: 'true'
+      BackupRetentionPeriod: 30
+      CopyTagsToSnapshot: 'true'
       DBInstanceClass: !Ref 'DatabaseClass'
+      DBParameterGroupName: !Ref 'DatabaseParameterGroup'
       DBSnapshotIdentifier: !If
         - UseSnapshotCondition
         - !Ref 'DatabaseSnapshot'

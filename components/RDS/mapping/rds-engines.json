@@ -1,0 +1,18 @@
+[
+  "aurora",
+  "aurora-mysql",
+  "aurora-mysql-pq",
+  "aurora-postgresql",
+  "mariadb",
+  "mysql",
+  "neptune",
+  "oracle-ee",
+  "oracle-se",
+  "oracle-se1",
+  "oracle-se2",
+  "postgres",
+  "sqlserver-ee",
+  "sqlserver-ex",
+  "sqlserver-se",
+  "sqlserver-web"
+]

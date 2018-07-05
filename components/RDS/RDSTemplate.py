@@ -64,6 +64,7 @@ parameter_groups = [
                 'DatabaseClass',
                 'DatabaseEngine',
                 'DatabaseEngineVersion',
+                'DatabaseParameterGroupFamily',
                 'DatabaseMultiAz',
                 'DatabaseUser',
                 'DatabasePassword',
@@ -176,19 +177,25 @@ param_db_engine = t.add_parameter(Parameter(
     Type='String',
     AllowedValues=['postgres',
                    'mysql',
-                   'mariadb',
-                   'oracle-se2',
-                   'oracle-se1'],
+                   'mariadb'],
 ))
 
 # https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_CreateDBInstance.html
 param_db_engine_version = t.add_parameter(Parameter(
     'DatabaseEngineVersion',
-    Default='postgres-9.6.3',
+    Default='postgres-9.6.6',
     Description='Database engine version, must be a version matches '
                 'specified database engine.',
     Type='String',
     AllowedValues=cfnutil.load_mapping('mapping/rds-versions.json'),
+))
+
+param_db_param_group_family = t.add_parameter(Parameter(
+    'DatabaseParameterGroupFamily',
+    Default='postgres9.6',
+    Description='Database parameter group family',
+    Type='String',
+    AllowedValues=cfnutil.load_mapping('mapping/rds-parameter-groups.json')
 ))
 
 param_db_user = t.add_parameter(Parameter(
@@ -212,8 +219,8 @@ param_db_password = t.add_parameter(Parameter(
     Type='String',
     MinLength='1',
     MaxLength='41',
-    AllowedPattern='[a-zA-Z0-9]*',
-    ConstraintDescription='must contain only alphanumeric characters.'
+    # AllowedPattern='[a-zA-Z0-9]*',
+    # ConstraintDescription='must contain only alphanumeric characters.'
 ))
 
 param_db_multi_az = t.add_parameter(Parameter(
@@ -454,6 +461,12 @@ subnet_group = t.add_resource(rds.DBSubnetGroup(
     SubnetIds=Ref(param_subnetids)
 ))
 
+param_group = t.add_resource(rds.DBParameterGroup(
+    'DatabaseParameterGroup',
+    Description='RDS parameter group',
+    Family=Ref(param_db_param_group_family),
+))
+
 enhanced_monitoring_role = t.add_resource(iam.Role(
     'EnhancedMonitoringRole',
     Condition='EnhancedMonitoringCondition',
@@ -473,7 +486,7 @@ enhanced_monitoring_role = t.add_resource(iam.Role(
 
 rds_instance = t.add_resource(rds.DBInstance(
     'RdsInstance',
-    # DeletionPolicy=Delete,
+    # DeletionPolicy=Retain,
 
     # DBName=Ref(param_dbname),
     DBSnapshotIdentifier=If('UseSnapshotCondition', Ref(param_db_snapshot),
@@ -505,6 +518,8 @@ rds_instance = t.add_resource(rds.DBInstance(
 
     DBSubnetGroupName=Ref(subnet_group),
 
+    DBParameterGroupName=Ref(param_group),
+
     VPCSecurityGroups=[
         If(
             'CreateSecurityGroupCondition',
@@ -523,6 +538,9 @@ rds_instance = t.add_resource(rds.DBInstance(
         'EnhancedMonitoringCondition',
         GetAtt(enhanced_monitoring_role, 'Arn'),
         Ref(AWS_NO_VALUE)),
+
+    BackupRetentionPeriod=30,
+    CopyTagsToSnapshot=True,
 ))
 
 for n in [1, 2, 3]:
@@ -658,14 +676,14 @@ t.add_output([
            Description='Database instance identifier',
            Value=Ref('RdsReadReplicaInstance3')
            ),
-    Output('EnvironmentVariables',
-           Description='Database environment variables',
-           Value=Join('', [
-               'PGHOST=', GetAtt(rds_instance, 'Endpoint.Address'), ' ',
-               'PGPORT=', GetAtt(rds_instance, 'Endpoint.Port'), ' ',
-               'PGUSER=', Ref(param_db_user), ' ',
-               'PGPASSWORD=', Ref(param_db_password), ' ',
-           ])),
+    # Output('EnvironmentVariables',
+    #        Description='Database environment variables',
+    #        Value=Join('', [
+    #            'PGHOST=', GetAtt(rds_instance, 'Endpoint.Address'), ' ',
+    #            'PGPORT=', GetAtt(rds_instance, 'Endpoint.Port'), ' ',
+    #            'PGUSER=', Ref(param_db_user), ' ',
+    #            'PGPASSWORD=', Ref(param_db_password), ' ',
+    #        ])),
 ])
 
 #
